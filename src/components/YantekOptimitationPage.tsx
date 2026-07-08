@@ -47,14 +47,55 @@ interface YantekOptimitationPageProps {
   onDetailClick?: (type: 'WO' | 'PO', identifier: string, isUlp: boolean, isCctv: boolean) => void;
   selectedMonth?: string;
   globalSelectedUlp?: string;
+  selectedUp3?: string;
 }
 
 export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({ 
   data, 
   onDetailClick, 
   selectedMonth,
-  globalSelectedUlp
+  globalSelectedUlp,
+  selectedUp3
 }) => {
+  const isUpSumbarMode = !selectedUp3 || selectedUp3 === "UP SUMBAR" || selectedUp3 === "UP4 SUMBAR";
+
+  const getUp3ForUlp = (ulpName: string): string => {
+    const cleanUlp = ulpName.toUpperCase().replace(/^ULP\s+/i, "").trim();
+    if (data.up3ToUlps) {
+      for (const [up3, ulps] of Object.entries(data.up3ToUlps as Record<string, string[]>)) {
+        if (ulps.some(u => u.toUpperCase().replace(/^ULP\s+/i, "").trim() === cleanUlp)) {
+          return up3.toUpperCase();
+        }
+      }
+    }
+    const standardMappings: Record<string, string> = {
+      "LUBUK BASUNG": "UP3 BUKITTINGGI",
+      "SIMPANG EMPAT": "UP3 BUKITTINGGI",
+      "BASO": "UP3 BUKITTINGGI",
+      "KOTO TUO": "UP3 BUKITTINGGI",
+      "BUKITTINGGI": "UP3 BUKITTINGGI",
+      "LUBUK SIKAPING": "UP3 BUKITTINGGI",
+      "PADANG PANJANG": "UP3 BUKITTINGGI",
+      "BELANTI": "UP3 PADANG",
+      "INDARUNG": "UP3 PADANG",
+      "TABING": "UP3 PADANG",
+      "KURANJI": "UP3 PADANG",
+      "LUBUK ALUNG": "UP3 PADANG",
+      "PARIAMAN": "UP3 PADANG",
+      "SICINCIN": "UP3 PADANG",
+      "SOLOK": "UP3 SOLOK",
+      "SAWAHLUNTO": "UP3 SOLOK",
+      "MUARA LABUH": "UP3 SOLOK",
+      "SIJUNJUNG": "UP3 SOLOK",
+      "KOTO BARU": "UP3 SOLOK",
+      "ALAHAN PANJANG": "UP3 SOLOK",
+      "PAYAKUMBUH": "UP3 PAYAKUMBUH",
+      "LIMA PULUH KOTA": "UP3 PAYAKUMBUH",
+      "SULIKI": "UP3 PAYAKUMBUH",
+    };
+    return standardMappings[cleanUlp] || "UP3 BUKITTINGGI";
+  };
+
   const [selectedUlp, setSelectedUlp] = useState<string>('ALL');
   const [clickedCell, setClickedCell] = useState<{
     ulpKey: string;
@@ -694,6 +735,23 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
     }
 
     if (rawRows.length <= 1) {
+      if (isUpSumbarMode) {
+        // High-fidelity fallback metrics per UP3
+        const mockUp3List = [
+          { name: "UP3 BUKITTINGGI", totalNilaiYo: 94.69, nilaiHariKerja: 98.24, nilaiProduktivitas: 110.15, nilaiPerformaWoPo: 242.05 },
+          { name: "UP3 PADANG", totalNilaiYo: 92.51, nilaiHariKerja: 94.12, nilaiProduktivitas: 108.50, nilaiPerformaWoPo: 236.40 },
+          { name: "UP3 SOLOK", totalNilaiYo: 91.15, nilaiHariKerja: 93.60, nilaiProduktivitas: 105.20, nilaiPerformaWoPo: 228.15 },
+          { name: "UP3 PAYAKUMBUH", totalNilaiYo: 94.23, nilaiHariKerja: 96.80, nilaiProduktivitas: 109.40, nilaiPerformaWoPo: 240.20 }
+        ];
+        return mockUp3List.map(u => ({
+          name: u.name,
+          totalNilaiYo: Math.min(100, u.totalNilaiYo),
+          nilaiHariKerja: Math.min(100, u.nilaiHariKerja),
+          nilaiProduktivitas: Math.min(100, u.nilaiProduktivitas),
+          nilaiPerformaWoPo: Math.min(100, u.nilaiPerformaWoPo)
+        }));
+      }
+
       // High-fidelity fallback metrics per ULP
       const mockUlpList = [
         { name: "LUBUK BASUNG", totalNilaiYo: 90.31, nilaiHariKerja: 93.01, nilaiProduktivitas: 116.74, nilaiPerformaWoPo: 234.05 },
@@ -773,7 +831,7 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
       return parseFloat(cleaned) || 0;
     };
 
-    const ulpGroups: { [ulpName: string]: {
+    const ulpGroups: { [groupKey: string]: {
       displayName: string;
       skorSum: number; skorCount: number;
       seharusnyaSum: number; seharusnyaCount: number;
@@ -790,10 +848,10 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
       const rawUlpName = idxNamaUlp !== -1 ? String(row[idxNamaUlp] || "").trim() : "";
       if (!rawUlpName) return;
 
-      const ulpKey = rawUlpName.toUpperCase();
-      if (!ulpGroups[ulpKey]) {
-        ulpGroups[ulpKey] = {
-          displayName: rawUlpName,
+      const groupKey = isUpSumbarMode ? getUp3ForUlp(rawUlpName) : rawUlpName.toUpperCase();
+      if (!ulpGroups[groupKey]) {
+        ulpGroups[groupKey] = {
+          displayName: isUpSumbarMode ? groupKey : rawUlpName,
           skorSum: 0, skorCount: 0,
           seharusnyaSum: 0, seharusnyaCount: 0,
           realisasiSum: 0, realisasiCount: 0,
@@ -803,7 +861,7 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
         };
       }
 
-      const group = ulpGroups[ulpKey];
+      const group = ulpGroups[groupKey];
 
       if (idxTotalSkor !== -1) {
         group.skorSum += parseNum(row[idxTotalSkor]);
@@ -863,13 +921,13 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
       };
     });
 
-    if (selectedUlp !== 'ALL') {
+    if (!isUpSumbarMode && selectedUlp !== 'ALL') {
       const uKey = selectedUlp.toUpperCase();
       return list.filter(u => u.name.toUpperCase().includes(uKey) || uKey.includes(u.name.toUpperCase()));
     }
 
     return list;
-  }, [filteredVccData, selectedUlp]);
+  }, [filteredVccData, selectedUlp, selectedUp3, data.up3ToUlps]);
 
   // Hook to process and parse Officer-specific performance data from VCC_DATA sheet
   const officerPerformanceData = useMemo(() => {
@@ -1176,15 +1234,103 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
 
   // Hook to calculate THRESHOLD NILAI YO table data matching the image
   const thresholdTableData = useMemo(() => {
-    const standardUlps = [
-      { key: "LUBUK BASUNG", name: "ULP LUBUK BASUNG", up3: "BUKITTINGGI", fallbackReal: 89.69, fallbackGreen: 39 },
-      { key: "SIMPANG EMPAT", name: "ULP SIMPANG EMPAT", up3: "BUKITTINGGI", fallbackReal: 90.61, fallbackGreen: 48 },
-      { key: "BASO", name: "ULP BASO", up3: "BUKITTINGGI", fallbackReal: 99.05, fallbackGreen: 15 },
-      { key: "KOTO TUO", name: "ULP KOTO TUO", up3: "BUKITTINGGI", fallbackReal: 96.96, fallbackGreen: 16 },
-      { key: "BUKITTINGGI", name: "ULP BUKITTINGGI", up3: "BUKITTINGGI", fallbackReal: 99.49, fallbackGreen: 15 },
-      { key: "LUBUK SIKAPING", name: "ULP LUBUK SIKAPING", up3: "BUKITTINGGI", fallbackReal: 96.24, fallbackGreen: 24 },
-      { key: "PADANG PANJANG", name: "ULP PADANG PANJANG", up3: "BUKITTINGGI", fallbackReal: 98.29, fallbackGreen: 19 },
+    const UP3_ULP_MAPPING: Record<string, Array<{ key: string; name: string; up3: string; fallbackReal: number; fallbackGreen: number }>> = {
+      "UP3 BUKITTINGGI": [
+        { key: "LUBUK BASUNG", name: "ULP LUBUK BASUNG", up3: "BUKITTINGGI", fallbackReal: 89.69, fallbackGreen: 39 },
+        { key: "SIMPANG EMPAT", name: "ULP SIMPANG EMPAT", up3: "BUKITTINGGI", fallbackReal: 90.61, fallbackGreen: 48 },
+        { key: "BASO", name: "ULP BASO", up3: "BUKITTINGGI", fallbackReal: 99.05, fallbackGreen: 15 },
+        { key: "KOTO TUO", name: "ULP KOTO TUO", up3: "BUKITTINGGI", fallbackReal: 96.96, fallbackGreen: 16 },
+        { key: "BUKITTINGGI", name: "ULP BUKITTINGGI", up3: "BUKITTINGGI", fallbackReal: 99.49, fallbackGreen: 15 },
+        { key: "LUBUK SIKAPING", name: "ULP LUBUK SIKAPING", up3: "BUKITTINGGI", fallbackReal: 96.24, fallbackGreen: 24 },
+        { key: "PADANG PANJANG", name: "ULP PADANG PANJANG", up3: "BUKITTINGGI", fallbackReal: 98.29, fallbackGreen: 19 },
+      ],
+      "UP3 PADANG": [
+        { key: "BELANTI", name: "ULP BELANTI", up3: "PADANG", fallbackReal: 95.5, fallbackGreen: 30 },
+        { key: "INDARUNG", name: "ULP INDARUNG", up3: "PADANG", fallbackReal: 94.2, fallbackGreen: 28 },
+        { key: "TABING", name: "ULP TABING", up3: "PADANG", fallbackReal: 96.1, fallbackGreen: 35 },
+        { key: "KURANJI", name: "ULP KURANJI", up3: "PADANG", fallbackReal: 93.8, fallbackGreen: 32 },
+        { key: "LUBUK ALUNG", name: "ULP LUBUK ALUNG", up3: "PADANG", fallbackReal: 91.2, fallbackGreen: 40 },
+        { key: "PARIAMAN", name: "ULP PARIAMAN", up3: "PADANG", fallbackReal: 92.5, fallbackGreen: 25 },
+        { key: "SICINCIN", name: "ULP SICINCIN", up3: "PADANG", fallbackReal: 89.9, fallbackGreen: 20 },
+      ],
+      "UP3 SOLOK": [
+        { key: "SOLOK", name: "ULP SOLOK", up3: "SOLOK", fallbackReal: 93.4, fallbackGreen: 22 },
+        { key: "SAWAHLUNTO", name: "ULP SAWAHLUNTO", up3: "SOLOK", fallbackReal: 95.1, fallbackGreen: 18 },
+        { key: "MUARA LABUH", name: "ULP MUARA LABUH", up3: "SOLOK", fallbackReal: 88.7, fallbackGreen: 15 },
+        { key: "SIJUNJUNG", name: "ULP SIJUNJUNG", up3: "SOLOK", fallbackReal: 90.2, fallbackGreen: 24 },
+        { key: "KOTO BARU", name: "ULP KOTO BARU", up3: "SOLOK", fallbackReal: 91.8, fallbackGreen: 19 },
+        { key: "ALAHAN PANJANG", name: "ULP ALAHAN PANJANG", up3: "SOLOK", fallbackReal: 89.5, fallbackGreen: 16 },
+      ],
+      "UP3 PAYAKUMBUH": [
+        { key: "PAYAKUMBUH", name: "ULP PAYAKUMBUH", up3: "PAYAKUMBUH", fallbackReal: 97.5, fallbackGreen: 29 },
+        { key: "LIMA PULUH KOTA", name: "ULP LIMA PULUH KOTA", up3: "PAYAKUMBUH", fallbackReal: 93.2, fallbackGreen: 21 },
+        { key: "SULIKI", name: "ULP SULIKI", up3: "PAYAKUMBUH", fallbackReal: 92.0, fallbackGreen: 17 },
+      ]
+    };
+
+    const activeUp3 = selectedUp3 || "";
+    const normalizedActiveUp3 = activeUp3.toUpperCase().replace(/^UP3\s+/i, "").replace(/[^A-Z0-9]/g, "").trim();
+
+    const allStandardUlps = [
+      ...UP3_ULP_MAPPING["UP3 BUKITTINGGI"],
+      ...UP3_ULP_MAPPING["UP3 PADANG"],
+      ...UP3_ULP_MAPPING["UP3 SOLOK"],
+      ...UP3_ULP_MAPPING["UP3 PAYAKUMBUH"]
     ];
+
+    let ulpsToProcess = allStandardUlps;
+
+    const isSpecificUp3 = normalizedActiveUp3 && normalizedActiveUp3 !== "UPSUMBAR" && normalizedActiveUp3 !== "SUMBAR";
+
+    if (isSpecificUp3) {
+      const mapKey = Object.keys(UP3_ULP_MAPPING).find(k => {
+        const cleanK = k.toUpperCase().replace(/^UP3\s+/i, "").replace(/[^A-Z0-9]/g, "").trim();
+        return cleanK === normalizedActiveUp3;
+      });
+
+      if (mapKey) {
+        ulpsToProcess = UP3_ULP_MAPPING[mapKey];
+      } else if (data.up3ToUlps) {
+        const matchingUp3Key = Object.keys(data.up3ToUlps).find(k => {
+          const cleanK = k.toUpperCase().replace(/^UP3\s+/i, "").replace(/[^A-Z0-9]/g, "").trim();
+          return cleanK === normalizedActiveUp3;
+        });
+        if (matchingUp3Key) {
+          const dynamicUlps = (data.up3ToUlps[matchingUp3Key] as string[]) || [];
+          ulpsToProcess = dynamicUlps.map(ulpName => {
+            const key = ulpName.toUpperCase().replace(/^ULP\s+/i, "").trim();
+            const matchedStd = allStandardUlps.find(std => std.key === key);
+            return {
+              key,
+              name: ulpName.startsWith("ULP ") ? ulpName : `ULP ${ulpName}`,
+              up3: matchingUp3Key,
+              fallbackReal: matchedStd ? matchedStd.fallbackReal : 100,
+              fallbackGreen: matchedStd ? matchedStd.fallbackGreen : 0
+            };
+          });
+        }
+      }
+    } else {
+      if (data.up3ToUlps && Object.keys(data.up3ToUlps).length > 0) {
+        const compiledDynamic: Array<{ key: string; name: string; up3: string; fallbackReal: number; fallbackGreen: number }> = [];
+        Object.entries(data.up3ToUlps as Record<string, string[]>).forEach(([up3Name, ulps]) => {
+          ulps.forEach(ulpName => {
+            const key = ulpName.toUpperCase().replace(/^ULP\s+/i, "").trim();
+            const matchedStd = allStandardUlps.find(std => std.key === key);
+            compiledDynamic.push({
+              key,
+              name: ulpName.startsWith("ULP ") ? ulpName : `ULP ${ulpName}`,
+              up3: up3Name,
+              fallbackReal: matchedStd ? matchedStd.fallbackReal : 100,
+              fallbackGreen: matchedStd ? matchedStd.fallbackGreen : 0
+            });
+          });
+        });
+        if (compiledDynamic.length > 0) {
+          ulpsToProcess = compiledDynamic;
+        }
+      }
+    }
 
     const rawRows = filteredVccData;
     const hasRealRows = rawRows.length > 1;
@@ -1242,7 +1388,16 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
       return parseFloat(cleaned) || 0;
     };
 
-    const rowsList = standardUlps.map((u) => {
+    const UP3_LIST = [
+      { key: "BUKITTINGGI", name: "UP3 BUKITTINGGI", up3: "SUMBAR", fallbackReal: 94.69, fallbackGreen: 176 },
+      { key: "PADANG", name: "UP3 PADANG", up3: "SUMBAR", fallbackReal: 92.51, fallbackGreen: 210 },
+      { key: "SOLOK", name: "UP3 SOLOK", up3: "SUMBAR", fallbackReal: 91.15, fallbackGreen: 113 },
+      { key: "PAYAKUMBUH", name: "UP3 PAYAKUMBUH", up3: "SUMBAR", fallbackReal: 94.23, fallbackGreen: 67 }
+    ];
+
+    const itemsToProcess = isUpSumbarMode ? UP3_LIST : ulpsToProcess;
+
+    const rowsList = itemsToProcess.map((u) => {
       let realRate = u.fallbackReal;
 
       if (isFilteredButEmpty) {
@@ -1254,7 +1409,16 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
         rawRows.slice(1).forEach(row => {
           if (!row || row.length === 0) return;
           const rowUlpRaw = idxNamaUlp !== -1 ? String(row[idxNamaUlp] || "").toUpperCase() : "";
-          if (rowUlpRaw.includes(u.key) || u.key.includes(rowUlpRaw)) {
+          
+          let matches = false;
+          if (isUpSumbarMode) {
+            const rowUp3Name = getUp3ForUlp(rowUlpRaw);
+            matches = rowUp3Name.includes(u.key);
+          } else {
+            matches = rowUlpRaw.includes(u.key) || u.key.includes(rowUlpRaw);
+          }
+
+          if (matches) {
             if (idxTotalSkor !== -1) {
               sumTotalSkor += parseNum(row[idxTotalSkor]);
               countTotalSkor++;
@@ -1286,7 +1450,16 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
         rawRows.slice(1).forEach(row => {
           if (!row || row.length === 0) return;
           const rowUlpRaw = idxNamaUlp !== -1 ? String(row[idxNamaUlp] || "").toUpperCase() : "";
-          if (rowUlpRaw.includes(u.key) || u.key.includes(rowUlpRaw)) {
+          
+          let matches = false;
+          if (isUpSumbarMode) {
+            const rowUp3Name = getUp3ForUlp(rowUlpRaw);
+            matches = rowUp3Name.includes(u.key);
+          } else {
+            matches = rowUlpRaw.includes(u.key) || u.key.includes(rowUlpRaw);
+          }
+
+          if (matches) {
             let val = 0;
             if (idxTotalSkor !== -1) {
               val = parseNum(row[idxTotalSkor]);
@@ -1330,7 +1503,7 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
     });
 
     let filteredList = rowsList;
-    if (selectedUlp !== 'ALL') {
+    if (!isUpSumbarMode && selectedUlp !== 'ALL') {
       const uKey = selectedUlp.toUpperCase();
       filteredList = rowsList.filter(r => r.key.includes(uKey) || uKey.includes(r.key));
     }
@@ -1355,7 +1528,7 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
         totalPetugas: grandTotalPetugas
       }
     };
-  }, [filteredVccData, data.officerPerformance, selectedUlp]);
+  }, [filteredVccData, data.officerPerformance, selectedUlp, selectedUp3, data.up3ToUlps]);
 
   const handleCellClick = (ulpKey: string, ulpName: string, category: 'green' | 'yellow' | 'red' | 'total') => {
     const titles = {
@@ -1446,7 +1619,17 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
 
         // Check ULP filter
         const rowUlpRaw = idxNamaUlp !== -1 ? String(row[idxNamaUlp] || "").toUpperCase() : "";
-        const matchesUlp = ulpKey === 'ALL' || rowUlpRaw.includes(ulpKey) || ulpKey.includes(rowUlpRaw);
+        
+        let matchesUlp = false;
+        if (ulpKey === 'ALL') {
+          matchesUlp = true;
+        } else if (isUpSumbarMode) {
+          const rowUp3Name = getUp3ForUlp(rowUlpRaw);
+          matchesUlp = rowUp3Name.includes(ulpKey) || ulpKey.includes(rowUp3Name);
+        } else {
+          matchesUlp = rowUlpRaw.includes(ulpKey) || ulpKey.includes(rowUlpRaw);
+        }
+
         if (!matchesUlp) return;
 
         // Calculate score/percentage to determine category
@@ -1489,16 +1672,21 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
     } else {
       // Return beautiful mock data matching the category and ULP
       const standardUlps = [
-        { key: "LUBUK BASUNG", name: "ULP LUBUK BASUNG", fallbackGreen: 39 },
-        { key: "SIMPANG EMPAT", name: "ULP SIMPANG EMPAT", fallbackGreen: 48 },
-        { key: "BASO", name: "ULP BASO", fallbackGreen: 15 },
-        { key: "KOTO TUO", name: "ULP KOTO TUO", fallbackGreen: 16 },
-        { key: "BUKITTINGGI", name: "ULP BUKITTINGGI", fallbackGreen: 15 },
-        { key: "LUBUK SIKAPING", name: "ULP LUBUK SIKAPING", fallbackGreen: 24 },
-        { key: "PADANG PANJANG", name: "ULP PADANG PANJANG", fallbackGreen: 19 },
+        { key: "LUBUK BASUNG", name: "ULP LUBUK BASUNG", up3: "BUKITTINGGI", fallbackGreen: 39 },
+        { key: "SIMPANG EMPAT", name: "ULP SIMPANG EMPAT", up3: "BUKITTINGGI", fallbackGreen: 48 },
+        { key: "BASO", name: "ULP BASO", up3: "BUKITTINGGI", fallbackGreen: 15 },
+        { key: "KOTO TUO", name: "ULP KOTO TUO", up3: "BUKITTINGGI", fallbackGreen: 16 },
+        { key: "BUKITTINGGI", name: "ULP BUKITTINGGI", up3: "BUKITTINGGI", fallbackGreen: 15 },
+        { key: "LUBUK SIKAPING", name: "ULP LUBUK SIKAPING", up3: "BUKITTINGGI", fallbackGreen: 24 },
+        { key: "PADANG PANJANG", name: "ULP PADANG PANJANG", up3: "BUKITTINGGI", fallbackGreen: 19 },
       ];
 
-      const matchingUlps = ulpKey === 'ALL' ? standardUlps : standardUlps.filter(u => u.key === ulpKey);
+      const matchingUlps = ulpKey === 'ALL' 
+        ? standardUlps 
+        : (isUpSumbarMode 
+            ? standardUlps.filter(u => u.up3 === ulpKey) 
+            : standardUlps.filter(u => u.key === ulpKey)
+          );
       const mockList: any[] = [];
 
       matchingUlps.forEach(ulp => {
@@ -1517,7 +1705,7 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
       });
       return mockList;
     }
-  }, [clickedCell, filteredVccData]);
+  }, [clickedCell, filteredVccData, isUpSumbarMode]);
 
   // Search filtered modal officers list
   const filteredModalOfficers = useMemo(() => {
@@ -1699,7 +1887,9 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
         <div className="lg:col-span-4 bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col gap-4">
           <div className="flex items-center gap-2">
             <div className="w-1.5 h-5 bg-brand-primary rounded-full" />
-            <h3 className="text-sm font-black italic tracking-tighter text-brand-primary uppercase">EVALUASI PERFORMA YO PER ULP</h3>
+            <h3 className="text-sm font-black italic tracking-tighter text-brand-primary uppercase">
+              {isUpSumbarMode ? "EVALUASI PERFORMA YO PER UP3" : "EVALUASI PERFORMA YO PER ULP"}
+            </h3>
           </div>
           
           <div className="h-[300px]">
@@ -1749,19 +1939,21 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
             <Sliders size={16} className="text-brand-primary" />
             <h3 className="text-sm font-black italic tracking-tighter text-brand-primary uppercase">THRESHOLD PENILAIAN & ALOKASI PETUGAS</h3>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[9px] font-black text-gray-400 uppercase">FILTER UNIT:</span>
-            <select 
-              value={selectedUlp} 
-              onChange={(e) => setSelectedUlp(e.target.value)}
-              className="bg-white border border-gray-200 rounded px-2.5 py-1 text-[10px] font-black text-brand-primary outline-none focus:border-brand-secondary transition-colors"
-            >
-              <option value="ALL">SEMUA UNIT</option>
-              {thresholdTableData.rows.map(u => (
-                <option key={u.key} value={u.key}>{u.key}</option>
-              ))}
-            </select>
-          </div>
+          {!isUpSumbarMode && (
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] font-black text-gray-400 uppercase">FILTER UNIT:</span>
+              <select 
+                value={selectedUlp} 
+                onChange={(e) => setSelectedUlp(e.target.value)}
+                className="bg-white border border-gray-200 rounded px-2.5 py-1 text-[10px] font-black text-brand-primary outline-none focus:border-brand-secondary transition-colors"
+              >
+                <option value="ALL">SEMUA UNIT</option>
+                {thresholdTableData.rows.map(u => (
+                  <option key={u.key} value={u.key}>{u.key}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         <div className="overflow-x-auto p-4 sm:p-6 bg-slate-50/40">
@@ -1769,7 +1961,9 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
             <thead>
               <tr className="bg-[#154c79] text-white text-[11px] font-black uppercase tracking-wider">
                 <th className="py-3 px-2 border-2 border-slate-300 align-middle" rowSpan={2}>NO</th>
-                <th className="py-3 px-4 border-2 border-slate-300 text-left align-middle" rowSpan={2}>NAMA ULP</th>
+                <th className="py-3 px-4 border-2 border-slate-300 text-left align-middle" rowSpan={2}>
+                  {isUpSumbarMode ? "NAMA UP3" : "NAMA ULP"}
+                </th>
                 <th className="py-3 px-3 border-2 border-slate-300 align-middle" rowSpan={2}>UP3</th>
                 <th className="py-3 px-3 border-2 border-slate-300 align-middle" rowSpan={2}>TARGET RATA2<br/>PERFORMA</th>
                 <th className="py-3 px-3 border-2 border-slate-300 align-middle" rowSpan={2}>REAL RATA2<br/>PERFORMA</th>
@@ -1837,35 +2031,37 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
               
               {/* Total Row */}
               <tr className="bg-[#154c79] text-white font-black text-[11px] uppercase text-center">
-                <td className="py-3.5 px-4 border-2 border-slate-300 text-left" colSpan={2}>TOTAL UP3</td>
+                <td className="py-3.5 px-4 border-2 border-slate-300 text-left" colSpan={2}>
+                  {isUpSumbarMode ? "TOTAL SUMBAR" : "TOTAL UP3"}
+                </td>
                 <td className="py-3.5 px-2 border-2 border-slate-300"></td>
                 <td className="py-3.5 px-2 border-2 border-slate-300">{thresholdTableData.totalUp3.targetRate}%</td>
                 <td className="py-3.5 px-2 border-2 border-slate-300 bg-[#113a5d]">{thresholdTableData.totalUp3.realRate}%</td>
                 <td 
-                  onClick={() => handleCellClick('ALL', 'TOTAL UP3 (SEMUA UNIT)', 'green')}
+                  onClick={() => handleCellClick('ALL', isUpSumbarMode ? 'TOTAL SUMBAR (SEMUA UP3)' : 'TOTAL UP3 (SEMUA UNIT)', 'green')}
                   className="py-3.5 px-2 border-2 border-slate-300 bg-[#00a651] hover:bg-[#008f45] cursor-pointer select-none transition-colors duration-150"
-                  title="Klik untuk melihat seluruh petugas Zona Hijau UP3"
+                  title={isUpSumbarMode ? "Klik untuk melihat seluruh petugas Zona Hijau SUMBAR" : "Klik untuk melihat seluruh petugas Zona Hijau UP3"}
                 >
                   <span className="hover:underline">{thresholdTableData.totalUp3.green}</span>
                 </td>
                 <td 
-                  onClick={() => handleCellClick('ALL', 'TOTAL UP3 (SEMUA UNIT)', 'yellow')}
+                  onClick={() => handleCellClick('ALL', isUpSumbarMode ? 'TOTAL SUMBAR (SEMUA UP3)' : 'TOTAL UP3 (SEMUA UNIT)', 'yellow')}
                   className="py-3.5 px-2 border-2 border-slate-300 bg-[#c2b800] text-black hover:bg-[#a39b00] cursor-pointer select-none transition-colors duration-150"
-                  title="Klik untuk melihat seluruh petugas Zona Kuning UP3"
+                  title={isUpSumbarMode ? "Klik untuk melihat seluruh petugas Zona Kuning SUMBAR" : "Klik untuk melihat seluruh petugas Zona Kuning UP3"}
                 >
                   <span className="hover:underline">{thresholdTableData.totalUp3.yellow}</span>
                 </td>
                 <td 
-                  onClick={() => handleCellClick('ALL', 'TOTAL UP3 (SEMUA UNIT)', 'red')}
+                  onClick={() => handleCellClick('ALL', isUpSumbarMode ? 'TOTAL SUMBAR (SEMUA UP3)' : 'TOTAL UP3 (SEMUA UNIT)', 'red')}
                   className="py-3.5 px-2 border-2 border-slate-300 bg-[#cc0000] hover:bg-[#b30000] cursor-pointer select-none transition-colors duration-150"
-                  title="Klik untuk melihat seluruh petugas Zona Merah UP3"
+                  title={isUpSumbarMode ? "Klik untuk melihat seluruh petugas Zona Merah SUMBAR" : "Klik untuk melihat seluruh petugas Zona Merah UP3"}
                 >
                   <span className="hover:underline">{thresholdTableData.totalUp3.red}</span>
                 </td>
                 <td 
-                  onClick={() => handleCellClick('ALL', 'TOTAL UP3 (SEMUA UNIT)', 'total')}
+                  onClick={() => handleCellClick('ALL', isUpSumbarMode ? 'TOTAL SUMBAR (SEMUA UP3)' : 'TOTAL UP3 (SEMUA UNIT)', 'total')}
                   className="py-3.5 px-2 border-2 border-slate-300 bg-[#0a1c3f] hover:bg-[#061126] cursor-pointer select-none transition-colors duration-150"
-                  title="Klik untuk melihat seluruh petugas UP3"
+                  title={isUpSumbarMode ? "Klik untuk melihat seluruh petugas SUMBAR" : "Klik untuk melihat seluruh petugas UP3"}
                 >
                   <span className="hover:underline">{thresholdTableData.totalUp3.totalPetugas}</span>
                 </td>
