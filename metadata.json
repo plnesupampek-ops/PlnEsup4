@@ -1,0 +1,6 @@
+{
+  "name": "MONITORING YANDAL PLN ES UP4 - SUMBAR",
+  "description": "Monitoring Yandal Dashboard for PLN ES Bukittinggi with Google Sheets integration.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

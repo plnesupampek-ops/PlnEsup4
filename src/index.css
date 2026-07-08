@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-primary: #0a1128;
+  --color-brand-secondary: #ff4d00;
+  --color-brand-accent: #00e5ff;
+  --color-card-bg: #ffffff;
+  --color-body-bg: #f4f7fa;
+}
+
+body {
+  @apply bg-body-bg text-brand-primary font-sans;
+}
+
+.dashboard-card {
+  @apply bg-card-bg rounded-xl shadow-sm border border-gray-100 overflow-hidden;
+}
+
+.table-header {
+  @apply bg-brand-primary text-white text-[10px] uppercase tracking-wider font-bold;
+}
+
+.table-row {
+  @apply border-b border-gray-50 text-[11px] hover:bg-gray-50 transition-colors;
+}
+
+.btn-primary {
+  @apply bg-brand-secondary text-white px-4 py-2 rounded-lg font-bold text-sm hover:opacity-90 transition-opacity flex items-center gap-2;
+}
+
+.btn-outline {
+  @apply border border-gray-200 text-gray-600 px-4 py-2 rounded-lg font-medium text-sm hover:bg-gray-50 transition-colors flex items-center gap-2;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-400;
+}
