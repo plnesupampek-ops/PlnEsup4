@@ -127,8 +127,8 @@ export const OverSLAPage: React.FC<OverSLAPageProps> = ({ data, onDetailClick })
         <div className="lg:col-span-4 flex flex-col gap-4">
           {/* Officer RPT Table */}
           <SmallTable 
-            title="RATING PETUGAS" 
-            subtitle="OVER SLA RPT" 
+            title="JUMLAH WO" 
+            subtitle="OVER SLA RPT PER PETUGAS" 
             headers={['NAMA PETUGAS', 'JML WO']}
             data={data.officerOverSlaRpt.map(o => [o.name, o.count])}
             color="#EF5350"
@@ -138,8 +138,8 @@ export const OverSLAPage: React.FC<OverSLAPageProps> = ({ data, onDetailClick })
 
           {/* Officer RCT Table */}
           <SmallTable 
-            title="RATING PETUGAS" 
-            subtitle="OVER SLA RCT" 
+            title="JUMLAH WO" 
+            subtitle="OVER SLA RCT PER PETUGAS" 
             headers={['NAMA PETUGAS', 'JML WO']}
             data={data.officerOverSlaRct.map(o => [o.name, o.count])}
             color="#FF7043"
