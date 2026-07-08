@@ -22,12 +22,13 @@ export default {
     if (url.pathname === "/api/sheets") {
       const sheetName = url.searchParams.get("sheetName");
       const customUrl = url.searchParams.get("customUrl");
+      const querySpreadsheetId = url.searchParams.get("spreadsheetId");
+      const spreadsheetId = querySpreadsheetId || "1UUxU8soJuTeB_kMk0XFqHY8UaPcISnWto9MOp960-mo";
 
       let targetUrl = "";
       if (customUrl) {
         targetUrl = customUrl;
       } else if (sheetName) {
-        const spreadsheetId = "1lMwrFdf-VKmmWWZ_UU_XGkvhUWvH-t16ZL4lSjDbPRU";
         targetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
       } else {
         return new Response(JSON.stringify({ error: "Missing sheetName or customUrl parameter" }), {
@@ -46,8 +47,14 @@ export default {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 seconds timeout per attempt
 
+        let currentUrl = targetUrl;
+        if (attempt > 1 && sheetName && !customUrl) {
+          // Fallback to direct export on retry attempts
+          currentUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&sheet=${encodeURIComponent(sheetName)}`;
+        }
+
         try {
-          const response = await fetch(targetUrl, {
+          const response = await fetch(currentUrl, {
             signal: controller.signal,
             headers: {
               "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -65,12 +72,12 @@ export default {
             });
           } else {
             lastError = new Error(`HTTP status ${response.status}`);
-            console.warn(`Attempt ${attempt} failed fetching sheets with HTTP ${response.status}. Retrying...`);
+            console.warn(`Attempt ${attempt} to ${currentUrl} failed with HTTP ${response.status}. Retrying...`);
           }
         } catch (err: any) {
           clearTimeout(timeoutId);
           lastError = err;
-          console.warn(`Attempt ${attempt} failed with error: ${err.message || err}. Retrying...`);
+          console.warn(`Attempt ${attempt} to ${currentUrl} failed with error: ${err.message || err}. Retrying...`);
         }
 
         // Brief backoff before retry
