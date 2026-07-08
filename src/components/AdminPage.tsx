@@ -21,9 +21,12 @@ import {
   LogOut,
   Info,
   Copy,
-  Check
+  Check,
+  Edit,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { GoogleSheetsService } from '../services/googleSheetsService';
 
 interface AdminPageProps {
   anomaliList: any[][]; // Table row structure: [No Laporan, Tgl Laporan, Nama Petugas, ULP, Jenis Anomali, Deskripsi, RPT, RCT]
@@ -137,7 +140,527 @@ export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData 
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
-  const [adminSubTab, setAdminSubTab] = useState<'ANOMALI' | 'TINDAK_LANJUT'>('ANOMALI');
+  const [adminSubTab, setAdminSubTab] = useState<'ANOMALI' | 'TINDAK_LANJUT' | 'SETTING'>('ANOMALI');
+
+  // New master settings states
+  const [petugasList, setPetugasList] = useState<any[][]>([]);
+  const [reguCctvList, setReguCctvList] = useState<any[][]>([]);
+  const [ulpList, setUlpList] = useState<any[][]>([]);
+  const [up3List, setUp3List] = useState<any[][]>([]);
+  const [poskoList, setPoskoList] = useState<any[][]>([]);
+  const [loadingSettings, setLoadingSettings] = useState(false);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
+
+  // Forms
+  const [newPetugasName, setNewPetugasName] = useState('');
+  const [newPetugasUlpId, setNewPetugasUlpId] = useState('');
+  const [addingPetugas, setAddingPetugas] = useState(false);
+
+  const [newReguCctvName, setNewReguCctvName] = useState('');
+  const [newReguCctvUp3Id, setNewReguCctvUp3Id] = useState('');
+  const [newReguCctvPoskoId, setNewReguCctvPoskoId] = useState('');
+  const [addingReguCctv, setAddingReguCctv] = useState(false);
+
+  // Editing states
+  const [editingPetugasId, setEditingPetugasId] = useState<string | null>(null);
+  const [editPetugasName, setEditPetugasName] = useState('');
+  const [editPetugasUlpId, setEditPetugasUlpId] = useState('');
+  const [savingPetugasId, setSavingPetugasId] = useState<string | null>(null);
+
+  const [editingReguId, setEditingReguId] = useState<string | null>(null);
+  const [editReguName, setEditReguName] = useState('');
+  const [editReguUp3Id, setEditReguUp3Id] = useState('');
+  const [editReguPoskoId, setEditReguPoskoId] = useState('');
+  const [savingReguId, setSavingReguId] = useState<string | null>(null);
+
+  // Filter searches
+  const [settingPetugasSearch, setSettingPetugasSearch] = useState('');
+  const [settingReguSearch, setSettingReguSearch] = useState('');
+
+  // Confirmation state
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    type: 'petugas' | 'regu_cctv';
+    id: string;
+    name: string;
+  }>({ isOpen: false, type: 'petugas', id: '', name: '' });
+
+  // Toggle sections
+  const [showAddPetugasForm, setShowAddPetugasForm] = useState(false);
+  const [showAddReguForm, setShowAddReguForm] = useState(false);
+
+  const loadSettingsData = async () => {
+    setLoadingSettings(true);
+    setSettingsError(null);
+    try {
+      const [rawPetugas, rawReguCctv, rawUlp, rawUp3, rawPosko] = await Promise.all([
+        GoogleSheetsService.fetchSheetDataRaw("PETUGAS").catch(() => [] as any[][]),
+        GoogleSheetsService.fetchSheetDataRaw("REGU-CCTV").catch(() => [] as any[][]),
+        GoogleSheetsService.fetchSheetDataRaw("ULP").catch(() => [] as any[][]),
+        GoogleSheetsService.fetchSheetDataRaw("UP3").catch(() => [] as any[][]),
+        GoogleSheetsService.fetchSheetDataRaw("POSKO").catch(() => [] as any[][])
+      ]);
+
+      let finalPetugas = rawPetugas;
+      if (finalPetugas.length <= 1) {
+        const stored = localStorage.getItem('local_petugas');
+        if (stored) {
+          finalPetugas = JSON.parse(stored);
+        } else {
+          finalPetugas = [
+            ["id", "name", "ulpId"],
+            ["k1", "13226_AZWARDI", "BKT6"],
+            ["k2", "13226_BOBI HERMANTO", "BKT6"],
+            ["k3", "13226_BOBY ADIQ MUTYA", "BKT6"],
+            ["k4", "13226_MAKMUR RIDWAN", "BKT6"],
+            ["k5", "13226_EDY JUNAIDI", "BKT6"],
+            ["k6", "13226_REDI SATRIA", "BKT1"],
+            ["k7", "13226_RIKO PUTRA", "BKT1"],
+            ["k8", "13226_SYAHRIAL", "BKT2"],
+            ["k9", "13226_ZULHELMID", "BKT2"]
+          ];
+          localStorage.setItem('local_petugas', JSON.stringify(finalPetugas));
+        }
+      } else {
+        localStorage.setItem('local_petugas', JSON.stringify(finalPetugas));
+      }
+
+      let finalRegu = rawReguCctv;
+      if (finalRegu.length <= 1) {
+        const stored = localStorage.getItem('local_regu_cctv');
+        if (stored) {
+          finalRegu = JSON.parse(stored);
+        } else {
+          finalRegu = [
+            ["id", "name", "up3Id"],
+            ["RC1", "LUBUK SIKAPING", "UP03"],
+            ["RC2", "BUKITTINGGI", "UP03"],
+            ["RC3", "BASO", "UP03"],
+            ["RC4", "LUBUK BASUNG", "UP03"],
+            ["RC5", "KOTOTUO", "UP03"]
+          ];
+          localStorage.setItem('local_regu_cctv', JSON.stringify(finalRegu));
+        }
+      } else {
+        localStorage.setItem('local_regu_cctv', JSON.stringify(finalRegu));
+      }
+
+      setPetugasList(finalPetugas);
+      setReguCctvList(finalRegu);
+      
+      let finalUlp = rawUlp;
+      if (finalUlp.length <= 1) {
+        finalUlp = [
+          ["id", "name", "poskoId"],
+          ["BKT1", "BUKITTINGGI", "PBK01"],
+          ["BKT2", "PADANG PANJANG", "PBK02"],
+          ["BKT3", "LUBUK SIKAPING", "PBK03"],
+          ["BKT4", "LUBUK BASUNG", "PBK04"],
+          ["BKT5", "SIMPANG EMPAT", "PBK05"],
+          ["BKT6", "BASO", "PBK06"],
+          ["BKT7", "KOTO TUO", "PBK07"]
+        ];
+      }
+      setUlpList(finalUlp);
+
+      let finalUp3 = rawUp3;
+      if (finalUp3.length <= 1) {
+        finalUp3 = [
+          ["id", "name"],
+          ["UP01", "UP3 PADANG"],
+          ["UP02", "UP3 SOLOK"],
+          ["UP03", "UP3 BUKITTINGGI"],
+          ["UP04", "UP3 PAYAKUMBUH"]
+        ];
+      }
+      setUp3List(finalUp3);
+
+      let finalPosko = rawPosko;
+      if (finalPosko.length <= 1) {
+        finalPosko = [
+          ["id", "name", "up3Id"],
+          ["PBK01", "POSKO ULP BUKITTINGGI", "UP03"],
+          ["PBK02", "POSKO ULP PADANG PANJANG", "UP03"],
+          ["PBK03", "POSKO ULP LUBUK SIKAPING", "UP03"],
+          ["PBK04", "POSKO ULP LUBUK BASUNG", "UP03"],
+          ["PBK05", "POSKO ULP SIMPANG EMPAT", "UP03"],
+          ["PBK06", "POSKO ULP BASO", "UP03"],
+          ["PBK07", "POSKO ULP KOTO TUO", "UP03"]
+        ];
+      }
+      setPoskoList(finalPosko);
+
+      if (finalUlp.length > 1) {
+        setNewPetugasUlpId(finalUlp[1][0]);
+      }
+      if (finalUp3.length > 1) {
+        setNewReguCctvUp3Id(finalUp3[1][0]);
+      }
+      if (finalPosko.length > 1) {
+        setNewReguCctvPoskoId(finalPosko[1][0]);
+      }
+
+    } catch (e: any) {
+      console.error("Gagal memuat data pengaturan", e);
+      setSettingsError("Gagal mengambil data master dari Google Sheets.");
+      
+      const storedPetugas = localStorage.getItem('local_petugas');
+      const storedRegu = localStorage.getItem('local_regu_cctv');
+      
+      if (storedPetugas) setPetugasList(JSON.parse(storedPetugas));
+      if (storedRegu) setReguCctvList(JSON.parse(storedRegu));
+    } finally {
+      setLoadingSettings(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isAuthenticated && adminSubTab === 'SETTING') {
+      loadSettingsData();
+    }
+  }, [isAuthenticated, adminSubTab]);
+
+  const handleAddPetugas = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPetugasName.trim() || !newPetugasUlpId) return;
+
+    setAddingPetugas(true);
+    const petugasName = newPetugasName.trim().toUpperCase();
+    
+    try {
+      let isSynced = false;
+      let nextId = "k" + (petugasList.length > 0 ? petugasList.length : 1);
+
+      if (petugasList.length > 1) {
+        const lastRow = petugasList[petugasList.length - 1];
+        const lastIdVal = String(lastRow[0]).trim();
+        if (lastIdVal.startsWith("k")) {
+          const numeric = parseInt(lastIdVal.split("_")[0].substring(1), 10);
+          if (!isNaN(numeric)) {
+            nextId = "k" + (numeric + 1);
+          }
+        }
+      }
+
+      if (gasUrl) {
+        const proxyUrl = `/api/gas-proxy?gasUrl=${encodeURIComponent(gasUrl.trim())}`;
+        const response = await fetch(proxyUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            action: 'add_petugas',
+            name: petugasName,
+            ulpId: newPetugasUlpId,
+            spreadsheetId: spreadsheetId
+          })
+        });
+
+        if (response.ok) {
+          const resText = await response.text();
+          const resData = JSON.parse(resText);
+          if (resData.success) {
+            isSynced = true;
+            if (resData.addedRow && resData.addedRow[0]) {
+              nextId = resData.addedRow[0];
+            }
+          } else {
+            throw new Error(resData.error || "Gagal sinkronisasi ke spreadsheet.");
+          }
+        } else {
+          throw new Error("Proxy error: " + response.statusText);
+        }
+      }
+
+      const updatedList = [...petugasList, [nextId, petugasName, newPetugasUlpId]];
+      setPetugasList(updatedList);
+      localStorage.setItem('local_petugas', JSON.stringify(updatedList));
+      setNewPetugasName('');
+      setShowAddPetugasForm(false);
+
+      if (isSynced) {
+        alert(`Sukses! Petugas '${petugasName}' berhasil ditambahkan dan disinkronisasi ke Google Sheets.`);
+      } else {
+        alert(`Sukses! Petugas '${petugasName}' ditambahkan secara lokal. (Belum sinkron ke Google Sheets karena Web App URL kosong / bermasalah).`);
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert(`Error menambahkan petugas: ${err.message || err}`);
+    } finally {
+      setAddingPetugas(false);
+    }
+  };
+
+  const handleDeletePetugas = async (idToDelete: string, name: string) => {
+    try {
+      let isSynced = false;
+      if (gasUrl) {
+        const proxyUrl = `/api/gas-proxy?gasUrl=${encodeURIComponent(gasUrl.trim())}`;
+        const response = await fetch(proxyUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            action: 'delete_petugas',
+            id: idToDelete,
+            spreadsheetId: spreadsheetId
+          })
+        });
+
+        if (response.ok) {
+          const resText = await response.text();
+          const resData = JSON.parse(resText);
+          if (resData.success) {
+            isSynced = true;
+          } else {
+            throw new Error(resData.error || "Gagal menghapus dari spreadsheet.");
+          }
+        } else {
+          throw new Error("Proxy error: " + response.statusText);
+        }
+      }
+
+      const updatedList = petugasList.filter(row => String(row[0]).trim() !== idToDelete.trim());
+      setPetugasList(updatedList);
+      localStorage.setItem('local_petugas', JSON.stringify(updatedList));
+
+      if (isSynced) {
+        alert(`Sukses! Petugas '${name}' (ID: ${idToDelete}) berhasil dihapus dari Google Sheets.`);
+      } else {
+        alert(`Sukses! Petugas '${name}' (ID: ${idToDelete}) dihapus secara lokal.`);
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert(`Error menghapus petugas: ${err.message || err}`);
+    }
+  };
+
+  const handleAddReguCctv = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const poskoIdToUse = newReguCctvPoskoId || newReguCctvUp3Id;
+    if (!newReguCctvName.trim() || !poskoIdToUse) return;
+
+    setAddingReguCctv(true);
+    const reguName = newReguCctvName.trim().toUpperCase();
+    
+    try {
+      let isSynced = false;
+      let nextId = "RC" + (reguCctvList.length > 0 ? reguCctvList.length : 1);
+
+      if (reguCctvList.length > 1) {
+        const lastRow = reguCctvList[reguCctvList.length - 1];
+        const lastIdVal = String(lastRow[0]).trim();
+        if (lastIdVal.startsWith("RC")) {
+          const numeric = parseInt(lastIdVal.substring(2), 10);
+          if (!isNaN(numeric)) {
+            nextId = "RC" + (numeric + 1);
+          }
+        }
+      }
+
+      if (gasUrl) {
+        const proxyUrl = `/api/gas-proxy?gasUrl=${encodeURIComponent(gasUrl.trim())}`;
+        const response = await fetch(proxyUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            action: 'add_regu_cctv',
+            name: reguName,
+            up3Id: poskoIdToUse,
+            spreadsheetId: spreadsheetId
+          })
+        });
+
+        if (response.ok) {
+          const resText = await response.text();
+          const resData = JSON.parse(resText);
+          if (resData.success) {
+            isSynced = true;
+            if (resData.addedRow && resData.addedRow[0]) {
+              nextId = resData.addedRow[0];
+            }
+          } else {
+            throw new Error(resData.error || "Gagal sinkronisasi ke spreadsheet.");
+          }
+        } else {
+          throw new Error("Proxy error: " + response.statusText);
+        }
+      }
+
+      const updatedList = [...reguCctvList, [nextId, reguName, poskoIdToUse]];
+      setReguCctvList(updatedList);
+      localStorage.setItem('local_regu_cctv', JSON.stringify(updatedList));
+      setNewReguCctvName('');
+      setShowAddReguForm(false);
+
+      if (isSynced) {
+        alert(`Sukses! Regu CCTV '${reguName}' berhasil ditambahkan dan disinkronisasi ke Google Sheets.`);
+      } else {
+        alert(`Sukses! Regu CCTV '${reguName}' ditambahkan secara lokal.`);
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert(`Error menambahkan regu CCTV: ${err.message || err}`);
+    } finally {
+      setAddingReguCctv(false);
+    }
+  };
+
+  const handleDeleteReguCctv = async (idToDelete: string, name: string) => {
+    try {
+      let isSynced = false;
+      if (gasUrl) {
+        const proxyUrl = `/api/gas-proxy?gasUrl=${encodeURIComponent(gasUrl.trim())}`;
+        const response = await fetch(proxyUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            action: 'delete_regu_cctv',
+            id: idToDelete,
+            spreadsheetId: spreadsheetId
+          })
+        });
+
+        if (response.ok) {
+          const resText = await response.text();
+          const resData = JSON.parse(resText);
+          if (resData.success) {
+            isSynced = true;
+          } else {
+            throw new Error(resData.error || "Gagal menghapus dari spreadsheet.");
+          }
+        } else {
+          throw new Error("Proxy error: " + response.statusText);
+        }
+      }
+
+      const updatedList = reguCctvList.filter(row => String(row[0]).trim() !== idToDelete.trim());
+      setReguCctvList(updatedList);
+      localStorage.setItem('local_regu_cctv', JSON.stringify(updatedList));
+
+      if (isSynced) {
+        alert(`Sukses! Regu CCTV '${name}' (ID: ${idToDelete}) berhasil dihapus dari Google Sheets.`);
+      } else {
+        alert(`Sukses! Regu CCTV '${name}' (ID: ${idToDelete}) dihapus secara lokal.`);
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert(`Error menghapus regu CCTV: ${err.message || err}`);
+    }
+  };
+
+  const handleEditPetugas = async (id: string) => {
+    if (!editPetugasName.trim() || !editPetugasUlpId) return;
+    setSavingPetugasId(id);
+    const updatedName = editPetugasName.trim().toUpperCase();
+    
+    try {
+      let isSynced = false;
+      if (gasUrl) {
+        const proxyUrl = `/api/gas-proxy?gasUrl=${encodeURIComponent(gasUrl.trim())}`;
+        const response = await fetch(proxyUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            action: 'edit_petugas',
+            id: id,
+            name: updatedName,
+            ulpId: editPetugasUlpId,
+            spreadsheetId: spreadsheetId
+          })
+        });
+
+        if (response.ok) {
+          const resText = await response.text();
+          const resData = JSON.parse(resText);
+          if (resData.success) {
+            isSynced = true;
+          } else {
+            throw new Error(resData.error || "Gagal mengupdate data di spreadsheet.");
+          }
+        } else {
+          throw new Error("Proxy error: " + response.statusText);
+        }
+      }
+
+      const updatedList = petugasList.map(row => {
+        if (String(row[0]).trim() === id.trim()) {
+          return [row[0], updatedName, editPetugasUlpId];
+        }
+        return row;
+      });
+      setPetugasList(updatedList);
+      localStorage.setItem('local_petugas', JSON.stringify(updatedList));
+
+      setEditingPetugasId(null);
+      if (isSynced) {
+        alert(`Sukses! Data Petugas berhasil diperbarui dan disinkronisasi ke Google Sheets.`);
+      } else {
+        alert(`Sukses! Data Petugas berhasil diperbarui secara lokal.`);
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert(`Error memperbarui petugas: ${err.message || err}`);
+    } finally {
+      setSavingPetugasId(null);
+    }
+  };
+
+  const handleEditReguCctv = async (id: string) => {
+    const poskoIdToUse = editReguPoskoId || editReguUp3Id;
+    if (!editReguName.trim() || !poskoIdToUse) return;
+    setSavingReguId(id);
+    const updatedName = editReguName.trim().toUpperCase();
+
+    try {
+      let isSynced = false;
+      if (gasUrl) {
+        const proxyUrl = `/api/gas-proxy?gasUrl=${encodeURIComponent(gasUrl.trim())}`;
+        const response = await fetch(proxyUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            action: 'edit_regu_cctv',
+            id: id,
+            name: updatedName,
+            up3Id: poskoIdToUse,
+            spreadsheetId: spreadsheetId
+          })
+        });
+
+        if (response.ok) {
+          const resText = await response.text();
+          const resData = JSON.parse(resText);
+          if (resData.success) {
+            isSynced = true;
+          } else {
+            throw new Error(resData.error || "Gagal mengupdate data di spreadsheet.");
+          }
+        } else {
+          throw new Error("Proxy error: " + response.statusText);
+        }
+      }
+
+      const updatedList = reguCctvList.map(row => {
+        if (String(row[0]).trim() === id.trim()) {
+          return [row[0], updatedName, poskoIdToUse];
+        }
+        return row;
+      });
+      setReguCctvList(updatedList);
+      localStorage.setItem('local_regu_cctv', JSON.stringify(updatedList));
+
+      setEditingReguId(null);
+      if (isSynced) {
+        alert(`Sukses! Data Regu CCTV berhasil diperbarui dan disinkronisasi ke Google Sheets.`);
+      } else {
+        alert(`Sukses! Data Regu CCTV berhasil diperbarui secara lokal.`);
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert(`Error memperbarui regu CCTV: ${err.message || err}`);
+    } finally {
+      setSavingReguId(null);
+    }
+  };
 
   // Active uploading states
   const [uploadingState, setUploadingState] = useState<{ [key: string]: boolean }>({});
@@ -213,6 +736,60 @@ export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData 
       setTimeout(() => setAuthError(''), 3000);
     }
   };
+
+  const filteredPetugas = useMemo(() => {
+    const rows = petugasList.length > 0 ? petugasList.slice(1) : [];
+    return rows.filter(row => {
+      const id = String(row[0] || '').toLowerCase();
+      const name = String(row[1] || '').toLowerCase();
+      const ulpId = String(row[2] || '').toLowerCase();
+      
+      const ulpRow = ulpList.find(r => String(r[0]).trim() === String(row[2]).trim());
+      const ulpName = ulpRow ? String(ulpRow[1]).toLowerCase() : '';
+
+      const search = settingPetugasSearch.toLowerCase().trim();
+      return !search || id.includes(search) || name.includes(search) || ulpId.includes(search) || ulpName.includes(search);
+    });
+  }, [petugasList, settingPetugasSearch, ulpList]);
+
+  const getPoskoName = (row: any[]) => {
+    const poskoId = String(row[2] || '').trim();
+    const foundPosko = poskoList.find(p => String(p[0]).trim() === poskoId);
+    if (foundPosko) {
+      return foundPosko[1];
+    }
+
+    // Fallback based on name matching
+    const reguName = String(row[1] || '').toUpperCase().trim();
+    if (reguName.includes("LUBUK SIKAPING")) return "POSKO ULP LUBUK SIKAPING";
+    if (reguName.includes("BUKITTINGGI")) return "POSKO ULP BUKITTINGGI";
+    if (reguName.includes("BASO")) return "POSKO ULP BASO";
+    if (reguName.includes("LUBUK BASUNG")) return "POSKO ULP LUBUK BASUNG";
+    if (reguName.includes("KOTO TUO") || reguName.includes("KOTOTUO")) return "POSKO ULP KOTO TUO";
+    if (reguName.includes("PADANG PANJANG")) return "POSKO ULP PADANG PANJANG";
+    if (reguName.includes("SIMPANG EMPAT")) return "POSKO ULP SIMPANG EMPAT";
+
+    const up3Row = up3List.find(r => String(r[0]).trim() === poskoId);
+    if (up3Row) {
+      return up3Row[1];
+    }
+
+    return poskoId || "-";
+  };
+
+  const filteredReguCctv = useMemo(() => {
+    const rows = reguCctvList.length > 0 ? reguCctvList.slice(1) : [];
+    return rows.filter(row => {
+      const id = String(row[0] || '').toLowerCase();
+      const name = String(row[1] || '').toLowerCase();
+      const poskoId = String(row[2] || '').toLowerCase();
+
+      const poskoName = getPoskoName(row).toLowerCase();
+
+      const search = settingReguSearch.toLowerCase().trim();
+      return !search || id.includes(search) || name.includes(search) || poskoId.includes(search) || poskoName.includes(search);
+    });
+  }, [reguCctvList, settingReguSearch, poskoList, up3List]);
 
   const handleLogout = () => {
     setIsAuthenticated(false);
@@ -385,6 +962,215 @@ export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData 
       }))
       .setMimeType(ContentService.MimeType.JSON);
     }
+
+    // Spreadsheet ID target yang ditentukan user (bisa dikirim dari web atau fallback ke default)
+    var spreadsheetId = data.spreadsheetId || "${spreadsheetId}";
+
+    // Tambah Petugas (Sheet PETUGAS)
+    if (data && data.action === 'add_petugas') {
+      var ss = SpreadsheetApp.openById(spreadsheetId.trim());
+      var sheet = ss.getSheetByName("PETUGAS");
+      if (!sheet) {
+        throw new Error("Sheet 'PETUGAS' tidak ditemukan di Spreadsheet.");
+      }
+      var lastRow = sheet.getLastRow();
+      
+      var nextId = "k1";
+      if (lastRow > 1) {
+        var lastIdVal = String(sheet.getRange(lastRow, 1).getValue()).trim();
+        if (lastIdVal.startsWith("k")) {
+          var cleanId = lastIdVal.split("_")[0].substring(1);
+          var numeric = parseInt(cleanId, 10);
+          if (!isNaN(numeric)) {
+            nextId = "k" + (numeric + 1);
+          }
+        }
+      }
+      
+      var name = data.name || "";
+      var ulpId = data.ulpId || "";
+      
+      sheet.appendRow([nextId, name, ulpId]);
+      
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true,
+        message: "Petugas '" + name + "' berhasil ditambahkan dengan ID " + nextId + "!",
+        addedRow: [nextId, name, ulpId]
+      }))
+      .setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    // Hapus Petugas (Sheet PETUGAS)
+    if (data && data.action === 'delete_petugas') {
+      var ss = SpreadsheetApp.openById(spreadsheetId.trim());
+      var sheet = ss.getSheetByName("PETUGAS");
+      if (!sheet) {
+        throw new Error("Sheet 'PETUGAS' tidak ditemukan di Spreadsheet.");
+      }
+      var lastRow = sheet.getLastRow();
+      var idToDelete = data.id || "";
+      var foundRow = -1;
+      
+      if (lastRow > 1) {
+        var values = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+        for (var r = 0; r < values.length; r++) {
+          if (String(values[r][0] || "").trim() === idToDelete.trim()) {
+            foundRow = r + 2;
+            break;
+          }
+        }
+      }
+      
+      if (foundRow !== -1) {
+        sheet.deleteRow(foundRow);
+        return ContentService.createTextOutput(JSON.stringify({
+          success: true,
+          message: "Petugas dengan ID '" + idToDelete + "' berhasil dihapus!"
+        }))
+        .setMimeType(ContentService.MimeType.JSON);
+      } else {
+        throw new Error("Petugas dengan ID '" + idToDelete + "' tidak ditemukan.");
+      }
+    }
+
+    // Edit Petugas (Sheet PETUGAS)
+    if (data && data.action === 'edit_petugas') {
+      var ss = SpreadsheetApp.openById(spreadsheetId.trim());
+      var sheet = ss.getSheetByName("PETUGAS");
+      if (!sheet) {
+        throw new Error("Sheet 'PETUGAS' tidak ditemukan di Spreadsheet.");
+      }
+      var lastRow = sheet.getLastRow();
+      var idToEdit = data.id || "";
+      var newName = data.name || "";
+      var newUlpId = data.ulpId || "";
+      var foundRow = -1;
+      
+      if (lastRow > 1) {
+        var values = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+        for (var r = 0; r < values.length; r++) {
+          if (String(values[r][0] || "").trim() === idToEdit.trim()) {
+            foundRow = r + 2;
+            break;
+          }
+        }
+      }
+      
+      if (foundRow !== -1) {
+        sheet.getRange(foundRow, 2).setValue(newName);
+        sheet.getRange(foundRow, 3).setValue(newUlpId);
+        return ContentService.createTextOutput(JSON.stringify({
+          success: true,
+          message: "Petugas '" + newName + "' berhasil diubah!"
+        }))
+        .setMimeType(ContentService.MimeType.JSON);
+      } else {
+        throw new Error("Petugas dengan ID '" + idToEdit + "' tidak ditemukan.");
+      }
+    }
+    
+    // Tambah Regu CCTV (Sheet REGU-CCTV)
+    if (data && data.action === 'add_regu_cctv') {
+      var ss = SpreadsheetApp.openById(spreadsheetId.trim());
+      var sheet = ss.getSheetByName("REGU-CCTV");
+      if (!sheet) {
+        throw new Error("Sheet 'REGU-CCTV' tidak ditemukan di Spreadsheet.");
+      }
+      var lastRow = sheet.getLastRow();
+      
+      var nextId = "RC1";
+      if (lastRow > 1) {
+        var lastIdVal = String(sheet.getRange(lastRow, 1).getValue()).trim();
+        if (lastIdVal.startsWith("RC")) {
+          var cleanId = lastIdVal.substring(2);
+          var numeric = parseInt(cleanId, 10);
+          if (!isNaN(numeric)) {
+            nextId = "RC" + (numeric + 1);
+          }
+        }
+      }
+      
+      var name = data.name || "";
+      var up3Id = data.up3Id || "";
+      
+      sheet.appendRow([nextId, name, up3Id]);
+      
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true,
+        message: "Regu CCTV '" + name + "' berhasil ditambahkan dengan ID " + nextId + "!",
+        addedRow: [nextId, name, up3Id]
+      }))
+      .setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    // Hapus Regu CCTV (Sheet REGU-CCTV)
+    if (data && data.action === 'delete_regu_cctv') {
+      var ss = SpreadsheetApp.openById(spreadsheetId.trim());
+      var sheet = ss.getSheetByName("REGU-CCTV");
+      if (!sheet) {
+        throw new Error("Sheet 'REGU-CCTV' tidak ditemukan di Spreadsheet.");
+      }
+      var lastRow = sheet.getLastRow();
+      var idToDelete = data.id || "";
+      var foundRow = -1;
+      
+      if (lastRow > 1) {
+        var values = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+        for (var r = 0; r < values.length; r++) {
+          if (String(values[r][0] || "").trim() === idToDelete.trim()) {
+            foundRow = r + 2;
+            break;
+          }
+        }
+      }
+      
+      if (foundRow !== -1) {
+        sheet.deleteRow(foundRow);
+        return ContentService.createTextOutput(JSON.stringify({
+          success: true,
+          message: "Regu CCTV dengan ID '" + idToDelete + "' berhasil dihapus!"
+        }))
+        .setMimeType(ContentService.MimeType.JSON);
+      } else {
+        throw new Error("Regu CCTV dengan ID '" + idToDelete + "' tidak ditemukan.");
+      }
+    }
+
+    // Edit Regu CCTV (Sheet REGU-CCTV)
+    if (data && data.action === 'edit_regu_cctv') {
+      var ss = SpreadsheetApp.openById(spreadsheetId.trim());
+      var sheet = ss.getSheetByName("REGU-CCTV");
+      if (!sheet) {
+        throw new Error("Sheet 'REGU-CCTV' tidak ditemukan di Spreadsheet.");
+      }
+      var lastRow = sheet.getLastRow();
+      var idToEdit = data.id || "";
+      var newName = data.name || "";
+      var newUp3Id = data.up3Id || "";
+      var foundRow = -1;
+      
+      if (lastRow > 1) {
+        var values = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+        for (var r = 0; r < values.length; r++) {
+          if (String(values[r][0] || "").trim() === idToEdit.trim()) {
+            foundRow = r + 2;
+            break;
+          }
+        }
+      }
+      
+      if (foundRow !== -1) {
+        sheet.getRange(foundRow, 2).setValue(newName);
+        sheet.getRange(foundRow, 3).setValue(newUp3Id);
+        return ContentService.createTextOutput(JSON.stringify({
+          success: true,
+          message: "Regu CCTV '" + newName + "' berhasil diubah!"
+        }))
+        .setMimeType(ContentService.MimeType.JSON);
+      } else {
+        throw new Error("Regu CCTV dengan ID '" + idToEdit + "' tidak ditemukan.");
+      }
+    }
     
     var base64Data = data.base64;
     var fileName = data.fileName;
@@ -396,8 +1182,6 @@ export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData 
     
     // Folder ID target yang ditentukan user (bisa dikirim dari web atau fallback ke default)
     var folderId = data.folderId || "${folderId}";
-    // Spreadsheet ID target yang ditentukan user (bisa dikirim dari web atau fallback ke default)
-    var spreadsheetId = data.spreadsheetId || "${spreadsheetId}";
     
     // 1. Upload File ke Google Drive HANYA jika link foto belum ada (Metode GDrive Aktif)
     if (!resultUrl && base64Data) {
@@ -1320,10 +2104,464 @@ function otorisasiIzinDrive() {
         >
           🔴 TINDAK LANJUT PETUGAS TERBAWAH {"<60%"} ({bottomOfficers.length})
         </button>
+        <button
+          onClick={() => setAdminSubTab('SETTING')}
+          className={`flex-1 py-3 text-center text-xs font-black tracking-wider uppercase rounded-xl transition-all cursor-pointer ${
+            adminSubTab === 'SETTING'
+              ? 'bg-slate-800 text-white shadow-md font-bold'
+              : 'text-slate-600 hover:text-slate-800 hover:bg-slate-200'
+          }`}
+        >
+          ⚙️ SETTING MASTER DATA
+        </button>
       </div>
 
-      {/* Table Section */}
-      <div className="bg-white rounded-3xl border border-gray-150 shadow-sm overflow-hidden flex flex-col gap-4">
+      {adminSubTab === 'SETTING' ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" id="admin_settings_view">
+          
+          {/* CARD 1: TABEL PETUGAS */}
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[650px]">
+            {/* Header */}
+            <div className="px-5 py-4 bg-slate-800 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-blue-500/20 text-blue-400 rounded-lg">
+                  <User size={16} />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black tracking-wider uppercase text-white">MASTER DATA PETUGAS YANTEK</h4>
+                  <p className="text-[9px] text-slate-300 font-bold uppercase mt-0.5 opacity-80">
+                    Total: {petugasList.length > 0 ? petugasList.length - 1 : 0} Petugas Terdaftar
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAddPetugasForm(!showAddPetugasForm)}
+                className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1"
+              >
+                {showAddPetugasForm ? 'BATAL' : '+ TAMBAH'}
+              </button>
+            </div>
+
+            {/* Adding Form Section */}
+            <AnimatePresence>
+              {showAddPetugasForm && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden border-b border-slate-100 bg-slate-50"
+                >
+                  <form onSubmit={handleAddPetugas} className="p-4 flex flex-col gap-3">
+                    <h5 className="text-[9px] font-black uppercase text-slate-500 tracking-wider">FORMULIR TAMBAH PETUGAS BARU</h5>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[8px] font-black uppercase text-slate-400 tracking-wider">NAMA LENGKAP</label>
+                        <input
+                          type="text"
+                          value={newPetugasName}
+                          onChange={(e) => setNewPetugasName(e.target.value)}
+                          placeholder="Contoh: 13226_NAMA"
+                          className="w-full mt-1 px-3 py-2 bg-white text-[10px] font-bold text-slate-800 rounded-lg border border-slate-200 focus:border-blue-500 outline-none uppercase"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[8px] font-black uppercase text-slate-400 tracking-wider">UNIT (ULP)</label>
+                        <select
+                          value={newPetugasUlpId}
+                          onChange={(e) => setNewPetugasUlpId(e.target.value)}
+                          className="w-full mt-1 px-3 py-2 bg-white text-[10px] font-bold text-slate-800 rounded-lg border border-slate-200 focus:border-blue-500 outline-none cursor-pointer"
+                        >
+                          {ulpList.slice(1).map((row, idx) => (
+                            <option key={idx} value={row[0]}>{row[1]} ({row[0]})</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={addingPetugas}
+                      className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-black text-[9px] tracking-widest uppercase rounded-lg shadow-sm disabled:opacity-50 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                    >
+                      {addingPetugas ? 'MENYIMPAN...' : 'SIMPAN DATA PETUGAS'}
+                    </button>
+                  </form>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Search Bar */}
+            <div className="p-3 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
+              <Search size={12} className="text-slate-400" />
+              <input
+                type="text"
+                value={settingPetugasSearch}
+                onChange={(e) => setSettingPetugasSearch(e.target.value)}
+                placeholder="Cari ID, Nama, atau ULP Petugas..."
+                className="bg-transparent text-slate-700 text-[10px] font-bold outline-none w-full placeholder:text-slate-400"
+              />
+              {settingPetugasSearch && (
+                <button
+                  onClick={() => setSettingPetugasSearch('')}
+                  className="text-[9px] font-black text-slate-400 hover:text-slate-600 uppercase"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+
+            {/* List */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-3">
+              {loadingSettings ? (
+                <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-2">
+                  <RefreshCw className="animate-spin text-blue-500" size={24} />
+                  <span className="text-[10px] font-black uppercase tracking-wider">Memuat Master Data...</span>
+                </div>
+              ) : filteredPetugas.length > 0 ? (
+                <div className="overflow-x-auto border border-slate-150 rounded-xl">
+                  <table className="w-full text-left border-collapse text-[10px] font-semibold text-slate-700">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200 text-slate-400 uppercase font-black text-[8px] tracking-wider">
+                        <th className="px-3 py-2 text-center w-10">No</th>
+                        <th className="px-3 py-2 w-20">ID</th>
+                        <th className="px-3 py-2">NAMA PETUGAS</th>
+                        <th className="px-3 py-2 w-32">ULP UNIT</th>
+                        <th className="px-3 py-2 text-center w-12">AKSI</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 bg-white">
+                      {filteredPetugas.map((row, idx) => {
+                        const isEditing = editingPetugasId === row[0];
+                        const ulpRow = ulpList.find(r => String(r[0]).trim() === String(row[2]).trim());
+                        const ulpName = ulpRow ? ulpRow[1] : row[2];
+
+                        if (isEditing) {
+                          return (
+                            <tr key={idx} className="bg-blue-50/40">
+                              <td className="px-3 py-2 text-center text-slate-400 font-extrabold">{idx + 1}</td>
+                              <td className="px-3 py-2 font-mono font-black text-slate-500">{row[0]}</td>
+                              <td className="px-3 py-2">
+                                <input
+                                  type="text"
+                                  value={editPetugasName}
+                                  onChange={(e) => setEditPetugasName(e.target.value)}
+                                  className="w-full px-2 py-1 bg-white text-[10px] font-bold text-slate-850 rounded border border-slate-200 focus:border-blue-500 outline-none uppercase"
+                                  placeholder="Nama Petugas"
+                                  required
+                                />
+                              </td>
+                              <td className="px-3 py-2">
+                                <select
+                                  value={editPetugasUlpId}
+                                  onChange={(e) => setEditPetugasUlpId(e.target.value)}
+                                  className="w-full px-2 py-1 bg-white text-[10px] font-bold text-slate-850 rounded border border-slate-200 focus:border-blue-500 outline-none cursor-pointer"
+                                >
+                                  {ulpList.slice(1).map((u, uIdx) => (
+                                    <option key={uIdx} value={u[0]}>{u[1]} ({u[0]})</option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td className="px-3 py-2 text-center">
+                                <div className="flex items-center justify-center gap-1">
+                                  <button
+                                    onClick={() => handleEditPetugas(row[0])}
+                                    disabled={savingPetugasId === row[0]}
+                                    className="p-1 rounded bg-emerald-500 hover:bg-emerald-600 text-white transition-all cursor-pointer disabled:opacity-50"
+                                    title="Simpan"
+                                  >
+                                    {savingPetugasId === row[0] ? (
+                                      <RefreshCw className="animate-spin" size={10} />
+                                    ) : (
+                                      <Check size={10} />
+                                    )}
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingPetugasId(null)}
+                                    disabled={savingPetugasId === row[0]}
+                                    className="p-1 rounded bg-slate-200 hover:bg-slate-300 text-slate-600 transition-all cursor-pointer disabled:opacity-50"
+                                    title="Batal"
+                                  >
+                                    <X size={10} />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        }
+
+                        return (
+                          <tr key={idx} className="hover:bg-slate-50/50 transition-all">
+                            <td className="px-3 py-2.5 text-center text-slate-400 font-extrabold">{idx + 1}</td>
+                            <td className="px-3 py-2.5 font-mono font-black text-slate-500">{row[0]}</td>
+                            <td className="px-3 py-2.5 font-black text-slate-850 uppercase">{row[1]}</td>
+                            <td className="px-3 py-2.5 font-bold text-blue-800 uppercase text-[9px]">{ulpName}</td>
+                            <td className="px-3 py-2.5 text-center">
+                              <div className="flex items-center justify-center gap-1.5">
+                                <button
+                                  onClick={() => {
+                                    setEditingPetugasId(row[0]);
+                                    setEditPetugasName(row[1]);
+                                    setEditPetugasUlpId(row[2]);
+                                  }}
+                                  className="p-1 rounded-md bg-amber-50 hover:bg-amber-100 text-amber-600 transition-all cursor-pointer"
+                                  title="Edit Petugas"
+                                >
+                                  <Edit size={12} />
+                                </button>
+                                <button
+                                  onClick={() => setConfirmModal({
+                                    isOpen: true,
+                                    type: 'petugas',
+                                    id: row[0],
+                                    name: row[1]
+                                  })}
+                                  className="p-1 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-600 transition-all cursor-pointer"
+                                  title="Hapus Petugas"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center text-slate-400 text-center uppercase p-4">
+                  <span className="text-[10px] font-black tracking-widest">Tidak ada data petugas yang cocok</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* CARD 2: TABEL REGU CCTV */}
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[650px]">
+            {/* Header */}
+            <div className="px-5 py-4 bg-slate-800 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-cyan-500/20 text-cyan-400 rounded-lg">
+                  <Camera size={16} />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black tracking-wider uppercase text-white">MASTER DATA REGU MONITORING CCTV</h4>
+                  <p className="text-[9px] text-slate-300 font-bold uppercase mt-0.5 opacity-80">
+                    Total: {reguCctvList.length > 0 ? reguCctvList.length - 1 : 0} Regu Terdaftar
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAddReguForm(!showAddReguForm)}
+                className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1"
+              >
+                {showAddReguForm ? 'BATAL' : '+ TAMBAH'}
+              </button>
+            </div>
+
+            {/* Adding Form Section */}
+            <AnimatePresence>
+              {showAddReguForm && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden border-b border-slate-100 bg-slate-50"
+                >
+                  <form onSubmit={handleAddReguCctv} className="p-4 flex flex-col gap-3">
+                    <h5 className="text-[9px] font-black uppercase text-slate-500 tracking-wider">FORMULIR TAMBAH REGU CCTV BARU</h5>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[8px] font-black uppercase text-slate-400 tracking-wider">NAMA REGU / ULP</label>
+                        <input
+                          type="text"
+                          value={newReguCctvName}
+                          onChange={(e) => setNewReguCctvName(e.target.value)}
+                          placeholder="Contoh: KOTO TUO"
+                          className="w-full mt-1 px-3 py-2 bg-white text-[10px] font-bold text-slate-800 rounded-lg border border-slate-200 focus:border-blue-500 outline-none uppercase"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[8px] font-black uppercase text-slate-400 tracking-wider">POSKO</label>
+                        <select
+                          value={newReguCctvPoskoId || newReguCctvUp3Id}
+                          onChange={(e) => {
+                            setNewReguCctvPoskoId(e.target.value);
+                            setNewReguCctvUp3Id(e.target.value);
+                          }}
+                          className="w-full mt-1 px-3 py-2 bg-white text-[10px] font-bold text-slate-800 rounded-lg border border-slate-200 focus:border-blue-500 outline-none cursor-pointer"
+                        >
+                          {poskoList.slice(1).map((row, idx) => (
+                            <option key={idx} value={row[0]}>{row[1]} ({row[0]})</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={addingReguCctv}
+                      className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-black text-[9px] tracking-widest uppercase rounded-lg shadow-sm disabled:opacity-50 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                    >
+                      {addingReguCctv ? 'MENYIMPAN...' : 'SIMPAN DATA REGU CCTV'}
+                    </button>
+                  </form>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Search Bar */}
+            <div className="p-3 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
+              <Search size={12} className="text-slate-400" />
+              <input
+                type="text"
+                value={settingReguSearch}
+                onChange={(e) => setSettingReguSearch(e.target.value)}
+                placeholder="Cari ID, Nama Regu, atau Posko..."
+                className="bg-transparent text-slate-700 text-[10px] font-bold outline-none w-full placeholder:text-slate-400"
+              />
+              {settingReguSearch && (
+                <button
+                  onClick={() => setSettingReguSearch('')}
+                  className="text-[9px] font-black text-slate-400 hover:text-slate-600 uppercase"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+
+            {/* List */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-3">
+              {loadingSettings ? (
+                <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-2">
+                  <RefreshCw className="animate-spin text-blue-500" size={24} />
+                  <span className="text-[10px] font-black uppercase tracking-wider">Memuat Master Data...</span>
+                </div>
+              ) : filteredReguCctv.length > 0 ? (
+                <div className="overflow-x-auto border border-slate-150 rounded-xl">
+                  <table className="w-full text-left border-collapse text-[10px] font-semibold text-slate-700">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200 text-slate-400 uppercase font-black text-[8px] tracking-wider">
+                        <th className="px-3 py-2 text-center w-10">No</th>
+                        <th className="px-3 py-2 w-20">ID</th>
+                        <th className="px-3 py-2">NAMA REGU</th>
+                        <th className="px-3 py-2 w-32">POSKO</th>
+                        <th className="px-3 py-2 text-center w-12">AKSI</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 bg-white">
+                      {filteredReguCctv.map((row, idx) => {
+                        const isEditing = editingReguId === row[0];
+                        const poskoName = getPoskoName(row);
+
+                        if (isEditing) {
+                          return (
+                            <tr key={idx} className="bg-blue-50/40">
+                              <td className="px-3 py-2 text-center text-slate-400 font-extrabold">{idx + 1}</td>
+                              <td className="px-3 py-2 font-mono font-black text-slate-500">{row[0]}</td>
+                              <td className="px-3 py-2">
+                                <input
+                                  type="text"
+                                  value={editReguName}
+                                  onChange={(e) => setEditReguName(e.target.value)}
+                                  className="w-full px-2 py-1 bg-white text-[10px] font-bold text-slate-850 rounded border border-slate-200 focus:border-blue-500 outline-none uppercase"
+                                  placeholder="Nama Regu"
+                                  required
+                                />
+                              </td>
+                              <td className="px-3 py-2">
+                                <select
+                                  value={editReguPoskoId || editReguUp3Id}
+                                  onChange={(e) => {
+                                    setEditReguPoskoId(e.target.value);
+                                    setEditReguUp3Id(e.target.value);
+                                  }}
+                                  className="w-full px-2 py-1 bg-white text-[10px] font-bold text-slate-850 rounded border border-slate-200 focus:border-blue-500 outline-none cursor-pointer"
+                                >
+                                  {poskoList.slice(1).map((u, uIdx) => (
+                                    <option key={uIdx} value={u[0]}>{u[1]} ({u[0]})</option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td className="px-3 py-2 text-center">
+                                <div className="flex items-center justify-center gap-1">
+                                  <button
+                                    onClick={() => handleEditReguCctv(row[0])}
+                                    disabled={savingReguId === row[0]}
+                                    className="p-1 rounded bg-emerald-500 hover:bg-emerald-600 text-white transition-all cursor-pointer disabled:opacity-50"
+                                    title="Simpan"
+                                  >
+                                    {savingReguId === row[0] ? (
+                                      <RefreshCw className="animate-spin" size={10} />
+                                    ) : (
+                                      <Check size={10} />
+                                    )}
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingReguId(null)}
+                                    disabled={savingReguId === row[0]}
+                                    className="p-1 rounded bg-slate-200 hover:bg-slate-300 text-slate-600 transition-all cursor-pointer disabled:opacity-50"
+                                    title="Batal"
+                                  >
+                                    <X size={10} />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        }
+
+                        return (
+                          <tr key={idx} className="hover:bg-slate-50/50 transition-all">
+                            <td className="px-3 py-2.5 text-center text-slate-400 font-extrabold">{idx + 1}</td>
+                            <td className="px-3 py-2.5 font-mono font-black text-slate-500">{row[0]}</td>
+                            <td className="px-3 py-2.5 font-black text-slate-850 uppercase">{row[1]}</td>
+                            <td className="px-3 py-2.5 font-bold text-cyan-800 uppercase text-[9px]">{poskoName}</td>
+                            <td className="px-3 py-2.5 text-center">
+                              <div className="flex items-center justify-center gap-1.5">
+                                <button
+                                  onClick={() => {
+                                    setEditingReguId(row[0]);
+                                    setEditReguName(row[1]);
+                                    setEditReguPoskoId(row[2]);
+                                    setEditReguUp3Id(row[2]);
+                                  }}
+                                  className="p-1 rounded-md bg-amber-50 hover:bg-amber-100 text-amber-600 transition-all cursor-pointer"
+                                  title="Edit Regu"
+                                >
+                                  <Edit size={12} />
+                                </button>
+                                <button
+                                  onClick={() => setConfirmModal({
+                                    isOpen: true,
+                                    type: 'regu_cctv',
+                                    id: row[0],
+                                    name: row[1]
+                                  })}
+                                  className="p-1 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-600 transition-all cursor-pointer"
+                                  title="Hapus Regu"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center text-slate-400 text-center uppercase p-4">
+                  <span className="text-[10px] font-black tracking-widest">Tidak ada data regu yang cocok</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+        </div>
+      ) : (
+        <div className="bg-white rounded-3xl border border-gray-150 shadow-sm overflow-hidden flex flex-col gap-4">
         
         {/* Table Header Filter */}
         <div className="px-5 py-4 bg-slate-800 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -1560,6 +2798,59 @@ function otorisasiIzinDrive() {
 
         </div>
       </div>
+      )}
+
+      {/* Confirmation Modal */}
+      <AnimatePresence>
+        {confirmModal.isOpen && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden"
+            >
+              <div className="bg-rose-500 text-white px-6 py-5 flex items-center gap-3">
+                <AlertTriangle className="animate-pulse" size={24} />
+                <h4 className="text-xs font-black tracking-widest uppercase text-white">KONFIRMASI PENGHAPUSAN</h4>
+              </div>
+              <div className="p-6 flex flex-col gap-4">
+                <p className="text-xs font-bold text-slate-600 uppercase leading-relaxed">
+                  Apakah Anda yakin ingin menghapus data berikut dari sistem master? Tindakan ini bersifat permanen dan tidak dapat dibatalkan.
+                </p>
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 font-mono text-[10px] text-slate-800 space-y-1">
+                  <p><strong className="text-slate-500 uppercase">TIPE:</strong> {confirmModal.type === 'petugas' ? 'PETUGAS YANTEK' : 'REGU CCTV'}</p>
+                  <p><strong className="text-slate-500 uppercase">ID:</strong> {confirmModal.id}</p>
+                  <p><strong className="text-slate-500 uppercase">NAMA:</strong> {confirmModal.name}</p>
+                </div>
+              </div>
+              <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3">
+                <button
+                  onClick={() => setConfirmModal({ isOpen: false, type: 'petugas', id: '', name: '' })}
+                  className="px-4 py-2 rounded-xl text-[10px] font-black uppercase text-slate-500 bg-white border border-slate-200 hover:bg-slate-150 cursor-pointer transition-all"
+                >
+                  BATALKAN
+                </button>
+                <button
+                  onClick={async () => {
+                    const { type, id, name } = confirmModal;
+                    setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                    if (type === 'petugas') {
+                      await handleDeletePetugas(id, name);
+                    } else {
+                      await handleDeleteReguCctv(id, name);
+                    }
+                  }}
+                  className="px-4 py-2 rounded-xl text-[10px] font-black uppercase text-white bg-rose-600 hover:bg-rose-700 cursor-pointer transition-all flex items-center gap-1.5"
+                >
+                  <Trash2 size={12} />
+                  YA, HAPUS SEKARANG
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

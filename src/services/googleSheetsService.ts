@@ -97,7 +97,7 @@ export class GoogleSheetsService {
   /**
    * Fetches raw sheet CSV via server proxy and parses using Papa.parse
    */
-  private static async fetchSheetDataRaw(sheetName: string): Promise<any[][]> {
+  public static async fetchSheetDataRaw(sheetName: string): Promise<any[][]> {
     let spreadsheetId = localStorage.getItem('google_spreadsheet_id');
     if (spreadsheetId === "1lMwrFdf-VKmmWWZ_UU_XGkvhUWvH-t16ZL4lSjDbPRU") {
       localStorage.removeItem('google_spreadsheet_id');
