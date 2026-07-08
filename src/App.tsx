@@ -334,8 +334,34 @@ export default function App() {
       return s.includes("CCTV") || s.includes("PAKAI") || s.includes("YA") || s.includes("VIDEO") || s.includes("FOTO") || s.includes("ADA");
     }).length;
     
+    // Filter vccData
+    let filteredVccData = data.vccData || [];
+    if (filteredVccData.length > 1) {
+      const vccHeaders = filteredVccData[0] || [];
+      const findVccHeaderIdx = (possibleNames: string[]) => {
+        const normNames = possibleNames.map(n => n.toLowerCase().trim().replace(/['"_\s]/g, ""));
+        return vccHeaders.findIndex(h => {
+          const cleaned = String(h || "").toLowerCase().trim().replace(/['"_\s]/g, "");
+          return normNames.includes(cleaned);
+        });
+      };
+      const vccUlpIdx = findVccHeaderIdx(["namaulp", "ulp", "unit"]);
+      
+      if (vccUlpIdx !== -1) {
+        const vccHeadersRow = filteredVccData[0];
+        const vccDataRows = filteredVccData.slice(1).filter(row => {
+          const u = cleanUlp(row[vccUlpIdx]);
+          const matchUp3 = isUlpAllowed(u);
+          const matchUlp = !selectedUlp || u === targetUlpClean;
+          return matchUp3 && matchUlp;
+        });
+        filteredVccData = [vccHeadersRow, ...vccDataRows];
+      }
+    }
+
     return {
       ...data,
+      vccData: filteredVccData,
       distinctWoRows: filteredDistinctWoRows,
       distinctPoRows: filteredDistinctPoRows,
       rawWoRows: filteredRawWoRows,
@@ -763,6 +789,7 @@ export default function App() {
                 onDetailClick={handleDetailClick}
                 selectedMonth={selectedMonth}
                 globalSelectedUlp={selectedUlp}
+                selectedUp3={selectedUp3}
               />
             ) : (
               <AdminPage anomaliList={data.anomali.anomaliList} vccData={data.vccData} />
