@@ -20,7 +20,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onTabChange }) => {
         </div>
         <div>
           <h1 className="text-xs md:text-sm font-black tracking-tighter leading-none">DASHBOARD MONITORING YANDAL</h1>
-          <p className="text-[9px] md:text-[10px] text-brand-accent font-bold opacity-80 uppercase">PLN ES BUKITTINGGI</p>
+          <p className="text-[9px] md:text-[10px] text-brand-accent font-bold opacity-80 uppercase">PLN ES UP4 SUMBAR</p>
         </div>
       </div>
 
