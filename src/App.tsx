@@ -47,6 +47,15 @@ const getInitialDefaultDates = () => {
   };
 };
 
+const resolveStandardUp3Name = (name: string): string => {
+  const val = String(name || "").toUpperCase();
+  if (val.includes("BUKIT")) return "UP3 BUKITTINGGI";
+  if (val.includes("PADANG")) return "UP3 PADANG";
+  if (val.includes("SOLOK")) return "UP3 SOLOK";
+  if (val.includes("PAYAKUMBUH")) return "UP3 PAYAKUMBUH";
+  return val;
+};
+
 export default function App() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -260,25 +269,16 @@ export default function App() {
     };
     const targetUlpClean = selectedUlp ? cleanUlp(selectedUlp) : "";
 
-    const resolveStandardUp3Name = (name: string): string => {
-      const val = String(name || "").toUpperCase();
-      if (val.includes("BUKIT")) return "UP3 BUKITTINGGI";
-      if (val.includes("PADANG")) return "UP3 PADANG";
-      if (val.includes("SOLOK")) return "UP3 SOLOK";
-      if (val.includes("PAYAKUMBUH")) return "UP3 PAYAKUMBUH";
-      return val;
-    };
-
     // Helper to check if row matches selected UP3
     const rowMatchUp3 = (row: any[], up3Idx: number) => {
-      if (!selectedUp3) return true;
+      if (!selectedUp3 || selectedUp3 === "UP SUMBAR" || selectedUp3 === "UP4 SUMBAR") return true;
       if (up3Idx === -1 || up3Idx >= row.length) return false;
       return resolveStandardUp3Name(row[up3Idx]) === resolveStandardUp3Name(selectedUp3);
     };
 
     // Helper to check if a standalone record (e.g. from sub-tables) belongs to UP3
     const getAllowedUlps = () => {
-      if (!selectedUp3 || !data.up3ToUlps) return [];
+      if (!selectedUp3 || selectedUp3 === "UP SUMBAR" || selectedUp3 === "UP4 SUMBAR" || !data.up3ToUlps) return [];
       const targetUP3Std = resolveStandardUp3Name(selectedUp3);
       const entry = Object.entries(data.up3ToUlps).find(([key]) => {
         return resolveStandardUp3Name(key) === targetUP3Std;
@@ -288,7 +288,7 @@ export default function App() {
     const allowedUlps = getAllowedUlps();
     const allowedUlpsClean = allowedUlps.map(u => cleanUlp(u));
     const isUlpAllowed = (ulpName: string) => {
-      if (!selectedUp3) return true;
+      if (!selectedUp3 || selectedUp3 === "UP SUMBAR" || selectedUp3 === "UP4 SUMBAR") return true;
       return allowedUlpsClean.includes(cleanUlp(ulpName));
     };
 
@@ -540,7 +540,13 @@ export default function App() {
   const filterList = React.useMemo(() => {
     if (!data) return [];
     if (selectedUp3 && data.up3ToUlps) {
-      return data.up3ToUlps[selectedUp3] || [];
+      if (selectedUp3 === "UP SUMBAR" || selectedUp3 === "UP4 SUMBAR") {
+        return data.allUlps || [];
+      }
+      const matchKey = Object.keys(data.up3ToUlps).find(k => k.toUpperCase() === selectedUp3.toUpperCase());
+      if (matchKey) {
+        return data.up3ToUlps[matchKey] || [];
+      }
     }
     return data.allUlps || [];
   }, [data, selectedUp3]);
@@ -589,11 +595,10 @@ export default function App() {
 
     // 2. Filter by ULP or Officer or UP3
     if (identifier.toUpperCase().startsWith("UP3")) {
-      const targetUp3Clean = identifier.toUpperCase().replace(/^UP3\s+/i, "").replace(/[^A-Z0-9]/g, "").trim();
+      const stdIdentifier = resolveStandardUp3Name(identifier);
       filteredRows = filteredRows.filter(row => {
         if (indices.up3 === -1 || indices.up3 >= row.length) return false;
-        const rowUp3Clean = String(row[indices.up3] || "").toUpperCase().replace(/^UP3\s+/i, "").replace(/[^A-Z0-9]/g, "").trim();
-        return rowUp3Clean === targetUp3Clean;
+        return resolveStandardUp3Name(row[indices.up3]) === stdIdentifier;
       });
       setModalTitle(`DETAIL DATA ${type}${isCctv ? ' (CCTV)' : ''} - ${identifier}`);
     } else if (identifier === "ALL") {
@@ -825,7 +830,7 @@ export default function App() {
                   <WOUP3Card 
                     totalWo={filteredData?.summary.distinctTotalWo || 0} 
                     totalWoCctv={filteredData?.summary.distinctTotalWoCctv || 0} 
-                    onDetailClick={(isCctv) => handleDetailClick('WO', isUpSumbar ? "ALL" : "UP3", true, isCctv)}
+                    onDetailClick={(isCctv) => handleDetailClick('WO', selectedUlp ? selectedUlp : (selectedUp3 ? selectedUp3 : "ALL"), true, isCctv)}
                     title={isUpSumbar ? "TOTAL WO UP4" : "TOTAL WO UP3"}
                   />
                   <ULPStatsCard 
@@ -853,7 +858,7 @@ export default function App() {
                   <POUP3Card 
                     totalPo={filteredData?.summary.distinctTotalPo || 0} 
                     totalPoCctv={filteredData?.summary.distinctTotalPoCctv || 0} 
-                    onDetailClick={(isCctv) => handleDetailClick('PO', isUpSumbar ? "ALL" : "UP3", true, isCctv)}
+                    onDetailClick={(isCctv) => handleDetailClick('PO', selectedUlp ? selectedUlp : (selectedUp3 ? selectedUp3 : "ALL"), true, isCctv)}
                     title={isUpSumbar ? "TOTAL PO UP4" : "TOTAL PO UP3"}
                   />
                   <ULPPOStatsCard 

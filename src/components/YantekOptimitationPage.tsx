@@ -60,37 +60,46 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
   const isUpSumbarMode = !selectedUp3 || selectedUp3 === "UP SUMBAR" || selectedUp3 === "UP4 SUMBAR";
 
   const getUp3ForUlp = (ulpName: string): string => {
-    const cleanUlp = ulpName.toUpperCase().replace(/^ULP\s+/i, "").trim();
+    const cleanString = (s: string) => s.toUpperCase()
+      .replace(/^POSKO ULP\s+/i, "")
+      .replace(/^ULP\s+/i, "")
+      .replace(/^POSKO\s+/i, "")
+      .replace(/[^A-Z0-9]/g, "")
+      .trim();
+
+    const cleanUlp = cleanString(ulpName);
+
     if (data.up3ToUlps) {
       for (const [up3, ulps] of Object.entries(data.up3ToUlps as Record<string, string[]>)) {
-        if (ulps.some(u => u.toUpperCase().replace(/^ULP\s+/i, "").trim() === cleanUlp)) {
+        if (ulps.some(u => cleanString(u) === cleanUlp)) {
           return up3.toUpperCase();
         }
       }
     }
     const standardMappings: Record<string, string> = {
-      "LUBUK BASUNG": "UP3 BUKITTINGGI",
-      "SIMPANG EMPAT": "UP3 BUKITTINGGI",
+      "LUBUKBASUNG": "UP3 BUKITTINGGI",
+      "SIMPANGEMPAT": "UP3 BUKITTINGGI",
       "BASO": "UP3 BUKITTINGGI",
-      "KOTO TUO": "UP3 BUKITTINGGI",
+      "KOTOTUO": "UP3 BUKITTINGGI",
       "BUKITTINGGI": "UP3 BUKITTINGGI",
-      "LUBUK SIKAPING": "UP3 BUKITTINGGI",
-      "PADANG PANJANG": "UP3 BUKITTINGGI",
+      "LUBUKSIKAPING": "UP3 BUKITTINGGI",
+      "PADANGPANJANG": "UP3 BUKITTINGGI",
       "BELANTI": "UP3 PADANG",
       "INDARUNG": "UP3 PADANG",
       "TABING": "UP3 PADANG",
       "KURANJI": "UP3 PADANG",
-      "LUBUK ALUNG": "UP3 PADANG",
+      "LUBUKALUNG": "UP3 PADANG",
       "PARIAMAN": "UP3 PADANG",
       "SICINCIN": "UP3 PADANG",
+      "PADANG": "UP3 PADANG",
       "SOLOK": "UP3 SOLOK",
       "SAWAHLUNTO": "UP3 SOLOK",
-      "MUARA LABUH": "UP3 SOLOK",
+      "MUARALABUH": "UP3 SOLOK",
       "SIJUNJUNG": "UP3 SOLOK",
-      "KOTO BARU": "UP3 SOLOK",
-      "ALAHAN PANJANG": "UP3 SOLOK",
+      "KOTOBARU": "UP3 SOLOK",
+      "ALAHANPANJANG": "UP3 SOLOK",
       "PAYAKUMBUH": "UP3 PAYAKUMBUH",
-      "LIMA PULUH KOTA": "UP3 PAYAKUMBUH",
+      "LIMAPULUHKOTA": "UP3 PAYAKUMBUH",
       "SULIKI": "UP3 PAYAKUMBUH",
     };
     return standardMappings[cleanUlp] || "UP3 BUKITTINGGI";
@@ -1343,16 +1352,16 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
 
     if (hasRealRows) {
       headers = rawRows[0] || [];
-      const findIndex = (targets: string[]) => {
-        const lowerTargets = targets.map(t => t.toLowerCase().trim().replace(/['"]/g, ""));
+      const findHeaderIdx = (possibleNames: string[]) => {
+        const normNames = possibleNames.map(n => n.toLowerCase().trim().replace(/['"_\s-]/g, ""));
         return headers.findIndex(h => {
-          const cleaned = String(h || "").toLowerCase().trim().replace(/['"]/g, "");
-          return lowerTargets.includes(cleaned);
+          const cleaned = String(h || "").toLowerCase().trim().replace(/['"_\s-]/g, "");
+          return normNames.includes(cleaned);
         });
       };
-      idxNamaUlp = findIndex(["Nama Ulp", "Nama ULP", "Ulp", "ULP"]);
-      idxTotalSkor = findIndex(["Total Skor", "Skor Total"]);
-      idxPersentaseSkor = findIndex(["Persentase Skor", "Persentase skor", "Skor"]);
+      idxNamaUlp = findHeaderIdx(["namaulp", "ulp", "unit"]);
+      idxTotalSkor = findHeaderIdx(["totalskor", "skortotal"]);
+      idxPersentaseSkor = findHeaderIdx(["persentaseskor", "persentase", "skor", "kinerja"]);
     }
 
     const parseNum = (val: any): number => {
@@ -1397,6 +1406,13 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
 
     const itemsToProcess = isUpSumbarMode ? UP3_LIST : ulpsToProcess;
 
+    const cleanString = (s: string) => s.toUpperCase()
+      .replace(/^POSKO ULP\s+/i, "")
+      .replace(/^ULP\s+/i, "")
+      .replace(/^POSKO\s+/i, "")
+      .replace(/[^A-Z0-9]/g, "")
+      .trim();
+
     const rowsList = itemsToProcess.map((u) => {
       let realRate = u.fallbackReal;
 
@@ -1413,9 +1429,13 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
           let matches = false;
           if (isUpSumbarMode) {
             const rowUp3Name = getUp3ForUlp(rowUlpRaw);
-            matches = rowUp3Name.includes(u.key);
+            const cleanRowUp3 = rowUp3Name.replace(/[^A-Z0-9]/g, "").toUpperCase();
+            const cleanUKey = u.key.replace(/[^A-Z0-9]/g, "").toUpperCase();
+            matches = cleanRowUp3.includes(cleanUKey) || cleanUKey.includes(cleanRowUp3);
           } else {
-            matches = rowUlpRaw.includes(u.key) || u.key.includes(rowUlpRaw);
+            const cleanRowUlp = cleanString(rowUlpRaw);
+            const cleanUKey = cleanString(u.key);
+            matches = cleanRowUlp.includes(cleanUKey) || cleanUKey.includes(cleanRowUlp);
           }
 
           if (matches) {
@@ -1433,6 +1453,8 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
         if (countTotalSkor > 0) {
           const avgTotalSkor = sumTotalSkor / countTotalSkor;
           realRate = Math.min(100, (avgTotalSkor / 15) * 100);
+        } else {
+          realRate = 0;
         }
       }
 
@@ -1454,9 +1476,13 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
           let matches = false;
           if (isUpSumbarMode) {
             const rowUp3Name = getUp3ForUlp(rowUlpRaw);
-            matches = rowUp3Name.includes(u.key);
+            const cleanRowUp3 = rowUp3Name.replace(/[^A-Z0-9]/g, "").toUpperCase();
+            const cleanUKey = u.key.replace(/[^A-Z0-9]/g, "").toUpperCase();
+            matches = cleanRowUp3.includes(cleanUKey) || cleanUKey.includes(cleanRowUp3);
           } else {
-            matches = rowUlpRaw.includes(u.key) || u.key.includes(rowUlpRaw);
+            const cleanRowUlp = cleanString(rowUlpRaw);
+            const cleanUKey = cleanString(u.key);
+            matches = cleanRowUlp.includes(cleanUKey) || cleanUKey.includes(cleanRowUlp);
           }
 
           if (matches) {
@@ -1508,9 +1534,10 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
       filteredList = rowsList.filter(r => r.key.includes(uKey) || uKey.includes(r.key));
     }
 
-    const averageRealRate = rowsList.length > 0 
-      ? rowsList.reduce((acc, r) => acc + r.realRate, 0) / rowsList.length 
-      : (isFilteredButEmpty ? 0 : 95.76);
+    const activeRowsList = rowsList.filter(r => r.totalPetugas > 0);
+    const averageRealRate = activeRowsList.length > 0 
+      ? activeRowsList.reduce((acc, r) => acc + r.realRate, 0) / activeRowsList.length 
+      : (isFilteredButEmpty || hasRealRows ? 0 : 95.76);
 
     const totalGreen = rowsList.reduce((acc, r) => acc + r.green, 0);
     const totalYellow = rowsList.reduce((acc, r) => acc + r.yellow, 0);
@@ -1625,7 +1652,9 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
           matchesUlp = true;
         } else if (isUpSumbarMode) {
           const rowUp3Name = getUp3ForUlp(rowUlpRaw);
-          matchesUlp = rowUp3Name.includes(ulpKey) || ulpKey.includes(rowUp3Name);
+          const cleanRowUp3 = rowUp3Name.replace(/[^A-Z0-9]/g, "").toUpperCase();
+          const cleanUlpKey = ulpKey.replace(/[^A-Z0-9]/g, "").toUpperCase();
+          matchesUlp = cleanRowUp3.includes(cleanUlpKey) || cleanUlpKey.includes(cleanRowUp3);
         } else {
           matchesUlp = rowUlpRaw.includes(ulpKey) || ulpKey.includes(rowUlpRaw);
         }
