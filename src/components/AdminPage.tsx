@@ -113,6 +113,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData 
   // Authentication states
   const [password, setPassword] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [authError, setAuthError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
@@ -782,6 +783,10 @@ export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData 
     if (sessionAuth === 'true') {
       setIsAuthenticated(true);
     }
+    const sessionSuper = sessionStorage.getItem('is_super_admin');
+    if (sessionSuper === 'true') {
+      setIsSuperAdmin(true);
+    }
 
     // Load GAS configurations from localStorage
     const savedGasUrl = localStorage.getItem('gas_web_app_url');
@@ -833,10 +838,19 @@ export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData 
   // Login handler
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === 'ADMIND') {
+    const inputPass = password.toUpperCase().trim();
+    if (inputPass === 'ADMIND') {
       setIsAuthenticated(true);
+      setIsSuperAdmin(false);
       setAuthError('');
       sessionStorage.setItem('admin_authenticated', 'true');
+      sessionStorage.setItem('is_super_admin', 'false');
+    } else if (inputPass === 'SUPERADMIN') {
+      setIsAuthenticated(true);
+      setIsSuperAdmin(true);
+      setAuthError('');
+      sessionStorage.setItem('admin_authenticated', 'true');
+      sessionStorage.setItem('is_super_admin', 'true');
     } else {
       setAuthError('Password salah! Coba lagi.');
       setPassword('');
@@ -901,7 +915,9 @@ export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData 
 
   const handleLogout = () => {
     setIsAuthenticated(false);
+    setIsSuperAdmin(false);
     sessionStorage.removeItem('admin_authenticated');
+    sessionStorage.removeItem('is_super_admin');
     setPassword('');
   };
 
@@ -2059,18 +2075,20 @@ function otorisasiIzinDrive() {
         </div>
 
         <div className="flex items-center gap-2.5 self-start sm:self-auto">
-          {/* Setup GAS & Cloud Storage Trigger */}
-          <button
-            onClick={() => setShowSettings(!showSettings)}
-            className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-[9px] font-black tracking-widest uppercase transition-all whitespace-nowrap cursor-pointer hover:scale-[1.02] active:scale-95 ${
-              showSettings 
-                ? "bg-slate-800 text-white shadow-md font-bold"
-                : "bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700"
-            }`}
-          >
-            <Settings2 size={13} />
-            {showSettings ? "Tutup Setup" : "Setup GAS & Supabase"}
-          </button>
+          {/* Setup GAS & Cloud Storage Trigger (Only visible to SuperAdmin) */}
+          {isSuperAdmin && (
+            <button
+              onClick={() => setShowSettings(!showSettings)}
+              className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-[9px] font-black tracking-widest uppercase transition-all whitespace-nowrap cursor-pointer hover:scale-[1.02] active:scale-95 ${
+                showSettings 
+                  ? "bg-slate-800 text-white shadow-md font-bold"
+                  : "bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700"
+              }`}
+            >
+              <Settings2 size={13} />
+              {showSettings ? "Tutup Setup" : "Setup GAS & Supabase"}
+            </button>
+          )}
 
           <button
             onClick={handleLogout}
@@ -2082,9 +2100,9 @@ function otorisasiIzinDrive() {
         </div>
       </div>
 
-      {/* Connection Setup Panel overlay */}
+      {/* Connection Setup Panel overlay (Only rendered for SuperAdmin) */}
       <AnimatePresence>
-        {showSettings && (
+        {showSettings && isSuperAdmin && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
