@@ -123,6 +123,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData 
   const [uploadMethod, setUploadMethod] = useState<'server' | 'gdrive'>('gdrive');
   const [showSettings, setShowSettings] = useState(false);
   const [copiedScript, setCopiedScript] = useState(false);
+  const [activeConfigTab, setActiveConfigTab] = useState<'GAS' | 'SUPABASE'>('GAS');
+  const [showScriptTemplate, setShowScriptTemplate] = useState(false);
 
   // Supabase direct configuration for Cloudflare client fallback
   const [supabaseUrl, setSupabaseUrl] = useState('https://bicyhoavntfuwaesqwwf.supabase.co');
@@ -149,6 +151,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData 
   const [up3List, setUp3List] = useState<any[][]>([]);
   const [poskoList, setPoskoList] = useState<any[][]>([]);
   const [woPoReguNames, setWoPoReguNames] = useState<string[]>([]);
+  const [reguToPoskoMap, setReguToPoskoMap] = useState<Record<string, string>>({});
   const [loadingSettings, setLoadingSettings] = useState(false);
   const [settingsError, setSettingsError] = useState<string | null>(null);
 
@@ -295,6 +298,25 @@ export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData 
 
       // Extract unique Regu names from WO and PO sheets
       const uniqueRegus = new Set<string>();
+      const dynamicReguToPosko: Record<string, string> = {};
+
+      const findPoskoIdByName = (poskoName: string): string | null => {
+        const cleanName = String(poskoName || "").toUpperCase()
+          .replace(/^POSKO ULP\s+/i, "")
+          .replace(/^ULP\s+/i, "")
+          .replace(/^POSKO\s+/i, "")
+          .trim();
+        
+        const found = finalPosko.find(p => {
+          const pName = String(p[1] || "").toUpperCase()
+            .replace(/^POSKO ULP\s+/i, "")
+            .replace(/^ULP\s+/i, "")
+            .replace(/^POSKO\s+/i, "")
+            .trim();
+          return pName === cleanName || pName.includes(cleanName) || cleanName.includes(pName);
+        });
+        return found ? found[0] : null;
+      };
 
       // Extract from rawWo
       if (rawWo && rawWo.length > 0) {
@@ -303,11 +325,22 @@ export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData 
           const cleanH = String(h || "").toLowerCase().trim();
           return ["nama regu", "user regu", "regu"].includes(cleanH);
         });
+        const poskoIdx = headers.findIndex(h => {
+          const cleanH = String(h || "").toLowerCase().trim();
+          return ["posko", "unit", "ulp"].includes(cleanH);
+        });
         if (reguIdx !== -1) {
           for (let i = 1; i < rawWo.length; i++) {
             const val = String(rawWo[i][reguIdx] || "").trim().toUpperCase();
             if (val && val !== "-" && val !== "NULL" && val !== "USER REGU" && val !== "NAMA REGU") {
               uniqueRegus.add(val);
+              if (poskoIdx !== -1) {
+                const poskoVal = String(rawWo[i][poskoIdx] || "").trim();
+                const matchedPoskoId = findPoskoIdByName(poskoVal);
+                if (matchedPoskoId) {
+                  dynamicReguToPosko[val] = matchedPoskoId;
+                }
+              }
             }
           }
         }
@@ -320,11 +353,22 @@ export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData 
           const cleanH = String(h || "").toLowerCase().trim();
           return ["nama regu", "user regu", "regu"].includes(cleanH);
         });
+        const poskoIdx = headers.findIndex(h => {
+          const cleanH = String(h || "").toLowerCase().trim();
+          return ["posko", "unit", "ulp"].includes(cleanH);
+        });
         if (reguIdx !== -1) {
           for (let i = 1; i < rawPo.length; i++) {
             const val = String(rawPo[i][reguIdx] || "").trim().toUpperCase();
             if (val && val !== "-" && val !== "NULL" && val !== "USER REGU" && val !== "NAMA REGU") {
               uniqueRegus.add(val);
+              if (poskoIdx !== -1) {
+                const poskoVal = String(rawPo[i][poskoIdx] || "").trim();
+                const matchedPoskoId = findPoskoIdByName(poskoVal);
+                if (matchedPoskoId) {
+                  dynamicReguToPosko[val] = matchedPoskoId;
+                }
+              }
             }
           }
         }
@@ -336,9 +380,17 @@ export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData 
           const val = String(finalRegu[i][1] || "").trim().toUpperCase();
           if (val && val !== "NAMA REGU" && val !== "USER REGU") {
             uniqueRegus.add(val);
+            if (!dynamicReguToPosko[val]) {
+              const poskoId = String(finalRegu[i][2] || "").trim();
+              if (poskoId) {
+                dynamicReguToPosko[val] = poskoId;
+              }
+            }
           }
         }
       }
+
+      setReguToPoskoMap(dynamicReguToPosko);
 
       let reguNamesArray = Array.from(uniqueRegus).sort();
       if (reguNamesArray.length === 0) {
@@ -2007,7 +2059,7 @@ function otorisasiIzinDrive() {
         </div>
 
         <div className="flex items-center gap-2.5 self-start sm:self-auto">
-          {/* Cloudflare Supabase Setup Trigger */}
+          {/* Setup GAS & Cloud Storage Trigger */}
           <button
             onClick={() => setShowSettings(!showSettings)}
             className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-[9px] font-black tracking-widest uppercase transition-all whitespace-nowrap cursor-pointer hover:scale-[1.02] active:scale-95 ${
@@ -2017,7 +2069,7 @@ function otorisasiIzinDrive() {
             }`}
           >
             <Settings2 size={13} />
-            {showSettings ? "Tutup Setup" : "Setup Kunci Supabase"}
+            {showSettings ? "Tutup Setup" : "Setup GAS & Supabase"}
           </button>
 
           <button
@@ -2030,7 +2082,7 @@ function otorisasiIzinDrive() {
         </div>
       </div>
 
-      {/* Supabase Connection Setup Panel overlay */}
+      {/* Connection Setup Panel overlay */}
       <AnimatePresence>
         {showSettings && (
           <motion.div
@@ -2038,101 +2090,341 @@ function otorisasiIzinDrive() {
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
-            id="supabase_client_settings_panel"
+            id="dual_client_settings_panel"
           >
-            <div className="bg-white rounded-3xl border border-gray-200 p-6 shadow-md flex flex-col gap-5">
-              <div>
-                <h3 className="text-xs font-black tracking-wider text-slate-800 uppercase flex items-center gap-1.5 mb-1.5">
-                  <Settings2 size={14} className="text-blue-600" />
-                  KONFIGURASI KONEKSI DIRECT SUPABASE (SOLUSI CLOUDFLARE)
-                </h3>
-                <p className="text-[9.5px] text-slate-500 font-bold uppercase leading-relaxed">
-                  Gunakan panel ini jika website Anda di-deploy di Cloudflare Pages/Workers (di mana backend Node.js tidak tersedia). Masukkan kredensial API Supabase Anda agar browser dapat mengunggah file langsung secara aman tanpa perantara server backend!
-                </p>
+            <div className="bg-white rounded-3xl border border-gray-200 p-6 shadow-md flex flex-col gap-6">
+              
+              {/* CONFIGURATION SUB-TAB SWITCHER */}
+              <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 gap-1.5 self-start">
+                <button
+                  type="button"
+                  onClick={() => setActiveConfigTab('GAS')}
+                  className={`px-4 py-2.5 rounded-xl text-[9.5px] font-black tracking-widest uppercase transition-all cursor-pointer ${
+                    activeConfigTab === 'GAS'
+                      ? 'bg-slate-800 text-white shadow font-bold'
+                      : 'text-slate-600 hover:text-slate-800 hover:bg-slate-200/50'
+                  }`}
+                >
+                  📊 GOOGLE APPS SCRIPT & SHEETS
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveConfigTab('SUPABASE')}
+                  className={`px-4 py-2.5 rounded-xl text-[9.5px] font-black tracking-widest uppercase transition-all cursor-pointer ${
+                    activeConfigTab === 'SUPABASE'
+                      ? 'bg-slate-800 text-white shadow font-bold'
+                      : 'text-slate-600 hover:text-slate-800 hover:bg-slate-200/50'
+                  }`}
+                >
+                  ⚡ DIRECT SUPABASE (CLOUDFLARE)
+                </button>
               </div>
 
-              <form onSubmit={handleSaveSupabaseConfig} className="flex flex-col gap-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {activeConfigTab === 'GAS' ? (
+                // GOOGLE APPS SCRIPT AND SHEET CONFIGS
+                <div className="flex flex-col gap-5">
                   <div>
-                    <label className="text-[8.5px] font-black uppercase text-slate-400 tracking-wider">SUPABASE URL</label>
-                    <input
-                      type="url"
-                      value={supabaseUrl}
-                      onChange={(e) => setSupabaseUrl(e.target.value)}
-                      placeholder="https://xyz.supabase.co"
-                      className="w-full mt-1 px-4 py-2.5 bg-slate-50 text-[10px] font-bold text-slate-800 rounded-lg border border-slate-200 focus:border-blue-500 outline-none placeholder:text-slate-400 font-mono"
-                      required
-                    />
+                    <h3 className="text-xs font-black tracking-wider text-slate-800 uppercase flex items-center gap-1.5 mb-1.5">
+                      <Settings2 size={14} className="text-blue-600" />
+                      KONFIGURASI INTEGRASI GOOGLE APPS SCRIPT & GOOGLE SHEETS
+                    </h3>
+                    <p className="text-[9.5px] text-slate-500 font-bold uppercase leading-relaxed">
+                      Gunakan panel ini untuk mengonfigurasi URL Web App Google Apps Script dan ID Google Sheets Anda agar fitur Tambah, Edit, dan Hapus data master serta unggah eviden tersinkronisasi ke Cloud Google Drive Anda dengan lancar.
+                    </p>
                   </div>
 
-                  <div>
-                    <label className="text-[8.5px] font-black uppercase text-slate-400 tracking-wider">STORAGE BUCKET NAME</label>
-                    <input
-                      type="text"
-                      value={supabaseBucket}
-                      onChange={(e) => setSupabaseBucket(e.target.value)}
-                      placeholder="EVIDEN"
-                      className="w-full mt-1 px-4 py-2.5 bg-slate-50 text-[10px] font-bold text-slate-800 rounded-lg border border-slate-200 focus:border-blue-500 outline-none placeholder:text-slate-400 font-mono"
-                      required
-                    />
-                  </div>
-                </div>
+                  <form onSubmit={handleSaveGasConfig} className="flex flex-col gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[8.5px] font-black uppercase text-slate-400 tracking-wider">URL WEB APP GOOGLE APPS SCRIPT</label>
+                        <input
+                          type="text"
+                          value={gasUrl}
+                          onChange={(e) => setGasUrl(e.target.value)}
+                          placeholder="https://script.google.com/macros/s/.../exec"
+                          className="w-full mt-1 px-4 py-2.5 bg-slate-50 text-[10px] font-bold text-slate-800 rounded-lg border border-slate-200 focus:border-blue-500 outline-none placeholder:text-slate-400 font-mono"
+                        />
+                        <span className="text-[7.5px] text-slate-400 font-bold uppercase mt-1 block">
+                          URL yang Anda salin dari menu "Deploy &gt; New Deployment" di Google Apps Script editor Anda.
+                        </span>
+                      </div>
 
-                <div>
-                  <label className="text-[8.5px] font-black uppercase text-slate-400 tracking-wider">SUPABASE KEY / SERVICE KEY</label>
-                  <div className="relative mt-1">
-                    <input
-                      type={showSupabaseKey ? "text" : "password"}
-                      value={supabaseKey}
-                      onChange={(e) => setSupabaseKey(e.target.value)}
-                      placeholder="Masukkan Anon/Service API Key Supabase Anda..."
-                      className="w-full px-4 py-2.5 bg-slate-50 text-[10px] pr-12 font-bold text-slate-800 rounded-lg border border-slate-200 focus:border-blue-500 outline-none placeholder:text-slate-400 font-mono"
-                      required
-                    />
+                      <div>
+                        <label className="text-[8.5px] font-black uppercase text-slate-400 tracking-wider">SPREADSHEET ID DATABASE</label>
+                        <input
+                          type="text"
+                          value={spreadsheetId}
+                          onChange={(e) => setSpreadsheetId(e.target.value)}
+                          placeholder="ID Google Spreadsheet..."
+                          className="w-full mt-1 px-4 py-2.5 bg-slate-50 text-[10px] font-bold text-slate-800 rounded-lg border border-slate-200 focus:border-blue-500 outline-none placeholder:text-slate-400 font-mono"
+                          required
+                        />
+                        <span className="text-[7.5px] text-slate-400 font-bold uppercase mt-1 block">
+                          ID unik Google Spreadsheet Anda (bisa didapatkan dari URL Spreadsheet Anda).
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[8.5px] font-black uppercase text-slate-400 tracking-wider">GOOGLE DRIVE FOLDER ID (EVIDEN)</label>
+                        <input
+                          type="text"
+                          value={folderId}
+                          onChange={(e) => setFolderId(e.target.value)}
+                          placeholder="ID Folder Google Drive..."
+                          className="w-full mt-1 px-4 py-2.5 bg-slate-50 text-[10px] font-bold text-slate-800 rounded-lg border border-slate-200 focus:border-blue-500 outline-none placeholder:text-slate-400 font-mono"
+                          required
+                        />
+                        <span className="text-[7.5px] text-slate-400 font-bold uppercase mt-1 block">
+                          ID folder tempat menyimpan foto eviden (berikan izin sharing folder "Anyone with Link can View").
+                        </span>
+                      </div>
+
+                      <div>
+                        <label className="text-[8.5px] font-black uppercase text-slate-400 tracking-wider">METODE UNGGAH EVIDEN</label>
+                        <select
+                          value={uploadMethod}
+                          onChange={(e) => setUploadMethod(e.target.value as 'server' | 'gdrive')}
+                          className="w-full mt-1 px-4 py-2.5 bg-slate-50 text-[10px] font-bold text-slate-800 rounded-lg border border-slate-200 focus:border-blue-500 outline-none cursor-pointer"
+                        >
+                          <option value="gdrive">GOOGLE DRIVE (MENGGUNAKAN APPS SCRIPT USER)</option>
+                          <option value="server">PORTAL SERVER (CEPAT & TANPA OTORISASI DRIVE)</option>
+                        </select>
+                        <span className="text-[7.5px] text-slate-400 font-bold uppercase mt-1 block">
+                          Pilih "Google Drive" untuk menyimpan ke Drive Anda, atau "Portal Server" untuk penyimpanan instant server.
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 mt-2">
+                      <button
+                        type="submit"
+                        className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-[9px] tracking-widest uppercase shadow-sm active:scale-95 transition-all cursor-pointer"
+                      >
+                        SIMPAN SETTINGAN GAS
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleResetGasConfig}
+                        className="px-5 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 font-black text-[9px] tracking-widest uppercase border border-rose-200 transition-all cursor-pointer"
+                      >
+                        RESET DEFAULT
+                      </button>
+                    </div>
+                  </form>
+
+                  <hr className="border-slate-100" />
+
+                  {/* DIAGNOSTIC TESTING AREA */}
+                  <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 flex flex-col gap-3">
+                    <div>
+                      <h4 className="text-[10px] font-black text-slate-800 uppercase tracking-wider">🧪 PENGUJIAN DIAGNOSTIK KONEKSI GAS</h4>
+                      <p className="text-[8.5px] text-slate-500 font-bold uppercase mt-0.5">
+                        Uji apakah Web App URL yang Anda masukkan merespons dengan benar dan siap digunakan untuk menulis data ke Sheets.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleTestConnection}
+                        disabled={testingConnection || !gasUrl}
+                        className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[9px] tracking-widest uppercase disabled:opacity-40 transition-all cursor-pointer flex items-center gap-1.5"
+                      >
+                        {testingConnection ? (
+                          <>
+                            <RefreshCw className="animate-spin" size={11} />
+                            MENGUJI KONEKSI...
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw size={11} />
+                            TEST KONEKSI APPS SCRIPT (PING)
+                          </>
+                        )}
+                      </button>
+                      
+                      {!gasUrl && (
+                        <span className="text-[8.5px] text-rose-500 font-black uppercase">
+                          * MASUKKAN URL WEB APP GAS UNTUK MEMULAI TES
+                        </span>
+                      )}
+                    </div>
+
+                    {/* TEST RESULT ALERTS */}
+                    {testResult && (
+                      <div className={`p-4 rounded-xl text-[9px] font-semibold leading-relaxed border ${
+                        testResult.type === 'success'
+                          ? 'bg-emerald-50 border-emerald-100 text-emerald-900'
+                          : testResult.type === 'warning'
+                          ? 'bg-amber-50 border-amber-100 text-amber-900'
+                          : 'bg-rose-50 border-rose-150 text-rose-900'
+                      }`}>
+                        <div className="flex items-start gap-2">
+                          <AlertTriangle className={`shrink-0 mt-0.5 ${
+                            testResult.type === 'success' ? 'text-emerald-600' : testResult.type === 'warning' ? 'text-amber-600' : 'text-rose-600'
+                          }`} size={14} />
+                          <div className="whitespace-pre-wrap uppercase font-bold leading-normal">
+                            {testResult.text}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <hr className="border-slate-100" />
+
+                  {/* COLLAPSIBLE KODE TEMPLATE APPS SCRIPT */}
+                  <div className="border border-slate-200 rounded-2xl overflow-hidden">
                     <button
                       type="button"
-                      onClick={() => setShowSupabaseKey(!showSupabaseKey)}
-                      className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 text-xs font-black tracking-widest cursor-pointer"
+                      onClick={() => setShowScriptTemplate(!showScriptTemplate)}
+                      className="w-full px-4 py-3 bg-slate-100 hover:bg-slate-150 transition-colors flex items-center justify-between text-left cursor-pointer"
                     >
-                      {showSupabaseKey ? "HIDE" : "SHOW"}
+                      <span className="text-[9.5px] font-black text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                        📄 LIHAT TEMPLATE SCRIPT (KODE CODETEMPLATE.gs TERBARU)
+                      </span>
+                      <span className="text-[10px] font-black text-slate-500">
+                        {showScriptTemplate ? '▲ SEMBUNYIKAN' : '▼ TAMPILKAN'}
+                      </span>
                     </button>
+
+                    {showScriptTemplate && (
+                      <div className="p-4 bg-slate-900 text-slate-100 flex flex-col gap-3">
+                        <div className="flex items-center justify-between">
+                          <p className="text-[8px] font-black text-slate-400 uppercase">
+                            Salin kode di bawah ini ke editor Google Apps Script Anda (Extension &gt; Apps Script):
+                          </p>
+                          <button
+                            type="button"
+                            onClick={copyToClipboard}
+                            className={`px-3 py-1.5 rounded-lg text-[8.5px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${
+                              copiedScript
+                                ? 'bg-emerald-600 text-white'
+                                : 'bg-slate-700 hover:bg-slate-600 text-slate-100'
+                            }`}
+                          >
+                            {copiedScript ? (
+                              <>
+                                <Check size={11} />
+                                SUKSES DISALIN!
+                              </>
+                            ) : (
+                              <>
+                                <Copy size={11} />
+                                SALIN KODE SCRIPT
+                              </>
+                            )}
+                          </button>
+                        </div>
+
+                        <pre className="text-[7.5px] leading-relaxed font-mono select-all bg-slate-950 p-4 rounded-xl max-h-[250px] overflow-y-auto custom-scrollbar border border-slate-800 text-emerald-400 tracking-tight whitespace-pre">
+                          {gasTemplateCode}
+                        </pre>
+                      </div>
+                    )}
                   </div>
-                  <span className="text-[8px] text-slate-400 font-extrabold uppercase mt-1.5 block">
-                    Saran Keamanan: Setelan disimpan secara lokal di browser Anda (Local Storage) dan aman karena tidak dikirim ke pihak luar mana pun.
-                  </span>
-                </div>
 
-                <div className="flex items-center gap-2 mt-2">
-                  <button
-                    type="submit"
-                    className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-[9px] tracking-widest uppercase shadow-sm active:scale-95 transition-all cursor-pointer"
-                  >
-                    SIMPAN KREDENSIAL SUPABASE
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleResetSupabaseConfig}
-                    className="px-5 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 font-black text-[9px] tracking-widest uppercase border border-rose-200 transition-all cursor-pointer"
-                  >
-                    RESET DEFAULT
-                  </button>
                 </div>
-              </form>
+              ) : (
+                // SUPABASE CONFIGS
+                <div className="flex flex-col gap-5">
+                  <div>
+                    <h3 className="text-xs font-black tracking-wider text-slate-800 uppercase flex items-center gap-1.5 mb-1.5">
+                      <Settings2 size={14} className="text-blue-600" />
+                      KONFIGURASI KONEKSI DIRECT SUPABASE (SOLUSI CLOUDFLARE)
+                    </h3>
+                    <p className="text-[9.5px] text-slate-500 font-bold uppercase leading-relaxed">
+                      Gunakan panel ini jika website Anda di-deploy di Cloudflare Pages/Workers (di mana backend Node.js tidak tersedia). Masukkan kredensial API Supabase Anda agar browser dapat mengunggah file langsung secara aman tanpa perantara server backend!
+                    </p>
+                  </div>
 
-              <div className="bg-sky-50 border border-sky-100 text-sky-850 p-4 rounded-2xl text-[9.5px] font-semibold leading-relaxed flex items-start gap-2.5">
-                <Info size={14} className="shrink-0 mt-0.5 text-sky-600" />
-                <div>
-                  <p className="font-extrabold uppercase text-[10px] text-sky-900 leading-snug">💬 TIPS DEPLOY CLOUDFLARE PAGES:</p>
-                  <p className="mt-1 font-bold">
-                    Untuk menghindari memasukkan kunci secara manual di setiap perangkat, Anda sangat disarankan untuk mendeklarasikan Variable Lingkungan (Environment Variables) di panel kontrol Cloudflare Pages Anda:
-                  </p>
-                  <ul className="list-disc list-inside mt-1.5 space-y-1 font-medium pl-1 text-slate-600">
-                    <li><strong className="text-slate-800">VITE_SUPABASE_URL</strong>: Masukkan url project Supabase Anda</li>
-                    <li><strong className="text-slate-800">VITE_SUPABASE_KEY</strong>: Masukkan API key anon/service Supabase Anda</li>
-                  </ul>
-                  <p className="mt-1.5 text-[8.5px] font-black text-blue-700">Aplikasi akan mendeteksi variabel di atas secara otomatis saat pertama kali dibuka!</p>
+                  <form onSubmit={handleSaveSupabaseConfig} className="flex flex-col gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[8.5px] font-black uppercase text-slate-400 tracking-wider">SUPABASE URL</label>
+                        <input
+                          type="url"
+                          value={supabaseUrl}
+                          onChange={(e) => setSupabaseUrl(e.target.value)}
+                          placeholder="https://xyz.supabase.co"
+                          className="w-full mt-1 px-4 py-2.5 bg-slate-50 text-[10px] font-bold text-slate-800 rounded-lg border border-slate-200 focus:border-blue-500 outline-none placeholder:text-slate-400 font-mono"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[8.5px] font-black uppercase text-slate-400 tracking-wider">STORAGE BUCKET NAME</label>
+                        <input
+                          type="text"
+                          value={supabaseBucket}
+                          onChange={(e) => setSupabaseBucket(e.target.value)}
+                          placeholder="EVIDEN"
+                          className="w-full mt-1 px-4 py-2.5 bg-slate-50 text-[10px] font-bold text-slate-800 rounded-lg border border-slate-200 focus:border-blue-500 outline-none placeholder:text-slate-400 font-mono"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[8.5px] font-black uppercase text-slate-400 tracking-wider">SUPABASE KEY / SERVICE KEY</label>
+                      <div className="relative mt-1">
+                        <input
+                          type={showSupabaseKey ? "text" : "password"}
+                          value={supabaseKey}
+                          onChange={(e) => setSupabaseKey(e.target.value)}
+                          placeholder="Masukkan Anon/Service API Key Supabase Anda..."
+                          className="w-full px-4 py-2.5 bg-slate-50 text-[10px] pr-12 font-bold text-slate-800 rounded-lg border border-slate-200 focus:border-blue-500 outline-none placeholder:text-slate-400 font-mono"
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowSupabaseKey(!showSupabaseKey)}
+                          className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 text-xs font-black tracking-widest cursor-pointer"
+                        >
+                          {showSupabaseKey ? "HIDE" : "SHOW"}
+                        </button>
+                      </div>
+                      <span className="text-[8px] text-slate-400 font-extrabold uppercase mt-1.5 block">
+                        Saran Keamanan: Setelan disimpan secara lokal di browser Anda (Local Storage) dan aman karena tidak dikirim ke pihak luar mana pun.
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 mt-2">
+                      <button
+                        type="submit"
+                        className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-[9px] tracking-widest uppercase shadow-sm active:scale-95 transition-all cursor-pointer"
+                      >
+                        SIMPAN KREDENSIAL SUPABASE
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleResetSupabaseConfig}
+                        className="px-5 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 font-black text-[9px] tracking-widest uppercase border border-rose-200 transition-all cursor-pointer"
+                      >
+                        RESET DEFAULT
+                      </button>
+                    </div>
+                  </form>
+
+                  <div className="bg-sky-50 border border-sky-100 text-sky-850 p-4 rounded-2xl text-[9.5px] font-semibold leading-relaxed flex items-start gap-2.5">
+                    <Info size={14} className="shrink-0 mt-0.5 text-sky-600" />
+                    <div>
+                      <p className="font-extrabold uppercase text-[10px] text-sky-900 leading-snug">💬 TIPS DEPLOY CLOUDFLARE PAGES:</p>
+                      <p className="mt-1 font-bold">
+                        Untuk menghindari memasukkan kunci secara manual di setiap perangkat, Anda sangat disarankan untuk mendeklarasikan Variable Lingkungan (Environment Variables) di panel kontrol Cloudflare Pages Anda:
+                      </p>
+                      <ul className="list-disc list-inside mt-1.5 space-y-1 font-medium pl-1 text-slate-600">
+                        <li><strong className="text-slate-800">VITE_SUPABASE_URL</strong>: Masukkan url project Supabase Anda</li>
+                        <li><strong className="text-slate-800">VITE_SUPABASE_KEY</strong>: Masukkan API key anon/service Supabase Anda</li>
+                      </ul>
+                      <p className="mt-1.5 text-[8.5px] font-black text-blue-700">Aplikasi akan mendeteksi variabel di atas secara otomatis saat pertama kali dibuka!</p>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
+
             </div>
           </motion.div>
         )}
@@ -2431,7 +2723,15 @@ function otorisasiIzinDrive() {
                         <label className="text-[8px] font-black uppercase text-slate-400 tracking-wider">NAMA REGU / ULP</label>
                         <select
                           value={newReguCctvName}
-                          onChange={(e) => setNewReguCctvName(e.target.value)}
+                          onChange={(e) => {
+                            const selectedName = e.target.value;
+                            setNewReguCctvName(selectedName);
+                            if (selectedName && reguToPoskoMap[selectedName]) {
+                              const targetPoskoId = reguToPoskoMap[selectedName];
+                              setNewReguCctvPoskoId(targetPoskoId);
+                              setNewReguCctvUp3Id(targetPoskoId);
+                            }
+                          }}
                           className="w-full mt-1 px-3 py-2 bg-white text-[10px] font-bold text-slate-800 rounded-lg border border-slate-200 focus:border-blue-500 outline-none cursor-pointer uppercase"
                           required
                         >
@@ -2519,14 +2819,25 @@ function otorisasiIzinDrive() {
                               <td className="px-3 py-2 text-center text-slate-400 font-extrabold">{idx + 1}</td>
                               <td className="px-3 py-2 font-mono font-black text-slate-500">{row[0]}</td>
                               <td className="px-3 py-2">
-                                <input
-                                  type="text"
+                                <select
                                   value={editReguName}
-                                  onChange={(e) => setEditReguName(e.target.value)}
-                                  className="w-full px-2 py-1 bg-white text-[10px] font-bold text-slate-850 rounded border border-slate-200 focus:border-blue-500 outline-none uppercase"
-                                  placeholder="Nama Regu"
+                                  onChange={(e) => {
+                                    const selectedName = e.target.value;
+                                    setEditReguName(selectedName);
+                                    if (selectedName && reguToPoskoMap[selectedName]) {
+                                      const targetPoskoId = reguToPoskoMap[selectedName];
+                                      setEditReguPoskoId(targetPoskoId);
+                                      setEditReguUp3Id(targetPoskoId);
+                                    }
+                                  }}
+                                  className="w-full px-2 py-1 bg-white text-[10px] font-bold text-slate-850 rounded border border-slate-200 focus:border-blue-500 outline-none cursor-pointer uppercase"
                                   required
-                                />
+                                >
+                                  <option value="">-- PILIH REGU --</option>
+                                  {woPoReguNames.map((name, idx) => (
+                                    <option key={idx} value={name}>{name}</option>
+                                  ))}
+                                </select>
                               </td>
                               <td className="px-3 py-2">
                                 <select
