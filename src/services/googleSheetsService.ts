@@ -540,7 +540,7 @@ export class GoogleSheetsService {
         if (name && name !== "NAME") {
           const cleanUlp = GoogleSheetsService.cleanUlpName(name).toUpperCase();
           if (!ulpToUp3Map.has(cleanUlp)) {
-            const fallbackUp3 = up3List[0] || "UP3 BUKIT TINGGI";
+            const fallbackUp3 = up3List[0] || "UP3 BUKITTINGGI";
             ulpToUp3Map.set(cleanUlp, fallbackUp3);
             if (!up3ToUlpsMap.has(fallbackUp3)) {
               up3ToUlpsMap.set(fallbackUp3, new Set());

@@ -18,41 +18,94 @@ import { DashboardData } from './types';
 import { motion, AnimatePresence } from 'motion/react';
 import { Loader2 } from 'lucide-react';
 
+type TabType = 'CCTV' | 'ANOMALI' | 'OVER_SLA' | 'RATING' | 'YANTEK_OPTIMITATION' | 'ADMIN';
+
+interface TabFilter {
+  startDate: string;
+  endDate: string;
+  selectedMonth: string;
+  selectedUlp: string;
+  selectedUp3: string;
+}
+
+const getInitialDefaultDates = () => {
+  const now = new Date();
+  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+  const formatDateForQuery = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  
+  return {
+    startDate: formatDateForQuery(firstDay),
+    endDate: formatDateForQuery(now),
+    selectedMonth: `${year}-${month}`
+  };
+};
+
 export default function App() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedUlp, setSelectedUlp] = useState("");
-  const [selectedUp3, setSelectedUp3] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [activeTab, setActiveTab] = useState<'CCTV' | 'ANOMALI' | 'OVER_SLA' | 'RATING' | 'YANTEK_OPTIMITATION' | 'ADMIN'>('CCTV');
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    return `${year}-${month}`;
+  const [activeTab, setActiveTab] = useState<TabType>('CCTV');
+
+  const [tabFilters, setTabFilters] = useState<Record<TabType, TabFilter>>(() => {
+    const initialDates = getInitialDefaultDates();
+    const createDefault = (): TabFilter => ({
+      startDate: initialDates.startDate,
+      endDate: initialDates.endDate,
+      selectedMonth: initialDates.selectedMonth,
+      selectedUlp: "",
+      selectedUp3: ""
+    });
+    return {
+      CCTV: createDefault(),
+      ANOMALI: createDefault(),
+      OVER_SLA: createDefault(),
+      RATING: createDefault(),
+      YANTEK_OPTIMITATION: createDefault(),
+      ADMIN: createDefault()
+    };
   });
+
+  const currentFilters = tabFilters[activeTab];
+  const startDate = currentFilters.startDate;
+  const endDate = currentFilters.endDate;
+  const selectedMonth = currentFilters.selectedMonth;
+  const selectedUlp = currentFilters.selectedUlp;
+  const selectedUp3 = currentFilters.selectedUp3;
 
   const isUpSumbar = !selectedUp3 || selectedUp3 === "UP SUMBAR";
 
   const handleUp3Change = (up3: string) => {
     const val = up3 === "UP SUMBAR" ? "" : up3;
-    setSelectedUp3(val);
-    
-    // Cascading: Clear ULP if the selected ULP does not belong to the newly selected UP3
-    if (val && data?.up3ToUlps) {
-      const allowedUlps = data.up3ToUlps[val] || [];
-      const clean = (u: string) => u.toUpperCase().replace(/^POSKO ULP\s+/i, "").replace(/^ULP\s+/i, "").replace(/^POSKO\s+/i, "").replace(/[^A-Z0-9]/g, "").trim();
-      const isAllowed = allowedUlps.some(u => clean(u) === clean(selectedUlp));
-      if (!isAllowed) {
-        setSelectedUlp("");
+    setTabFilters(prev => {
+      const activeFilters = prev[activeTab];
+      let newSelectedUlp = activeFilters.selectedUlp;
+      if (val && data?.up3ToUlps) {
+        const allowedUlps = data.up3ToUlps[val] || [];
+        const clean = (u: string) => u.toUpperCase().replace(/^POSKO ULP\s+/i, "").replace(/^ULP\s+/i, "").replace(/^POSKO\s+/i, "").replace(/[^A-Z0-9]/g, "").trim();
+        const isAllowed = allowedUlps.some(u => clean(u) === clean(activeFilters.selectedUlp));
+        if (!isAllowed) {
+          newSelectedUlp = "";
+        }
       }
-    }
+      return {
+        ...prev,
+        [activeTab]: {
+          ...activeFilters,
+          selectedUp3: val,
+          selectedUlp: newSelectedUlp
+        }
+      };
+    });
   };
 
   const handleMonthChange = (monthStr: string) => {
-    setSelectedMonth(monthStr);
     if (monthStr) {
       const [year, month] = monthStr.split('-');
       const y = parseInt(year, 10);
@@ -62,19 +115,56 @@ export default function App() {
         const lastDayObj = new Date(y, m, 0);
         const lastDayDate = String(lastDayObj.getDate()).padStart(2, '0');
         const lastDay = `${year}-${month}-${lastDayDate}`;
-        setStartDate(firstDay);
-        setEndDate(lastDay);
+        setTabFilters(prev => ({
+          ...prev,
+          [activeTab]: {
+            ...prev[activeTab],
+            selectedMonth: monthStr,
+            startDate: firstDay,
+            endDate: lastDay
+          }
+        }));
       }
+    } else {
+      setTabFilters(prev => ({
+        ...prev,
+        [activeTab]: {
+          ...prev[activeTab],
+          selectedMonth: monthStr
+        }
+      }));
     }
   };
-  
-  // Clear filter when changing tabs since the filter source (ULP vs Posko) changes
-  useEffect(() => {
-    setSelectedUlp("");
-    if (activeTab === 'YANTEK_OPTIMITATION') {
-      handleMonthChange(selectedMonth);
-    }
-  }, [activeTab]);
+
+  const handleUlpChange = (ulp: string) => {
+    setTabFilters(prev => ({
+      ...prev,
+      [activeTab]: {
+        ...prev[activeTab],
+        selectedUlp: ulp
+      }
+    }));
+  };
+
+  const handleStartDateChange = (date: string) => {
+    setTabFilters(prev => ({
+      ...prev,
+      [activeTab]: {
+        ...prev[activeTab],
+        startDate: date
+      }
+    }));
+  };
+
+  const handleEndDateChange = (date: string) => {
+    setTabFilters(prev => ({
+      ...prev,
+      [activeTab]: {
+        ...prev[activeTab],
+        endDate: date
+      }
+    }));
+  };
 
   const formatDateForQuery = (date: Date) => {
     const year = date.getFullYear();
@@ -82,14 +172,6 @@ export default function App() {
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   };
-
-  // Set default date range to current month on initial load
-  useEffect(() => {
-    const now = new Date();
-    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-    setStartDate(formatDateForQuery(firstDay));
-    setEndDate(formatDateForQuery(now));
-  }, []);
 
   const ulpToUp3Map = React.useMemo(() => {
     const map: Record<string, string> = {};
@@ -178,15 +260,32 @@ export default function App() {
     };
     const targetUlpClean = selectedUlp ? cleanUlp(selectedUlp) : "";
 
+    const resolveStandardUp3Name = (name: string): string => {
+      const val = String(name || "").toUpperCase();
+      if (val.includes("BUKIT")) return "UP3 BUKITTINGGI";
+      if (val.includes("PADANG")) return "UP3 PADANG";
+      if (val.includes("SOLOK")) return "UP3 SOLOK";
+      if (val.includes("PAYAKUMBUH")) return "UP3 PAYAKUMBUH";
+      return val;
+    };
+
     // Helper to check if row matches selected UP3
     const rowMatchUp3 = (row: any[], up3Idx: number) => {
       if (!selectedUp3) return true;
       if (up3Idx === -1 || up3Idx >= row.length) return false;
-      return cleanUp3(row[up3Idx]) === targetUp3Clean;
+      return resolveStandardUp3Name(row[up3Idx]) === resolveStandardUp3Name(selectedUp3);
     };
 
     // Helper to check if a standalone record (e.g. from sub-tables) belongs to UP3
-    const allowedUlps = selectedUp3 && data.up3ToUlps ? data.up3ToUlps[selectedUp3] || [] : [];
+    const getAllowedUlps = () => {
+      if (!selectedUp3 || !data.up3ToUlps) return [];
+      const targetUP3Std = resolveStandardUp3Name(selectedUp3);
+      const entry = Object.entries(data.up3ToUlps).find(([key]) => {
+        return resolveStandardUp3Name(key) === targetUP3Std;
+      });
+      return entry ? (entry[1] as string[]) : [];
+    };
+    const allowedUlps = getAllowedUlps();
     const allowedUlpsClean = allowedUlps.map(u => cleanUlp(u));
     const isUlpAllowed = (ulpName: string) => {
       if (!selectedUp3) return true;
@@ -695,15 +794,15 @@ export default function App() {
         lastSync={data.summary.lastSync} 
         summary={filteredData?.summary || data.summary} 
         selectedUlp={selectedUlp}
-        onUlpChange={setSelectedUlp}
+        onUlpChange={handleUlpChange}
         ulpList={filterList}
         selectedUp3={selectedUp3}
         onUp3Change={handleUp3Change}
         up3List={data?.up3List || []}
         startDate={startDate}
         endDate={endDate}
-        onStartDateChange={setStartDate}
-        onEndDateChange={setEndDate}
+        onStartDateChange={handleStartDateChange}
+        onEndDateChange={handleEndDateChange}
         activeTab={activeTab}
         selectedMonth={selectedMonth}
         onMonthChange={handleMonthChange}

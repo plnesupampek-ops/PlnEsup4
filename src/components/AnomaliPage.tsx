@@ -163,13 +163,22 @@ export const AnomaliPage: React.FC<AnomaliPageProps> = ({ data, selectedUp3, ulp
     { id: "koto_tuo", name: "KOTO TUO" }
   ];
 
+  const resolveStandardUp3Name = (name: string): string => {
+    const val = String(name || "").toUpperCase();
+    if (val.includes("BUKIT")) return "UP3 BUKITTINGGI";
+    if (val.includes("PADANG")) return "UP3 PADANG";
+    if (val.includes("SOLOK")) return "UP3 SOLOK";
+    if (val.includes("PAYAKUMBUH")) return "UP3 PAYAKUMBUH";
+    return val;
+  };
+
   const currentUlpList = useMemo(() => {
     if (isUpSumbar) {
       return up3ListForSumbar;
     }
-    const targetUP3Clean = (selectedUp3 || "UP3 BUKITTINGGI").toUpperCase().trim();
+    const targetUP3Clean = resolveStandardUp3Name(selectedUp3 || "UP3 BUKITTINGGI");
     const ulps = Object.entries(ulpToUp3Map)
-      .filter(([_, up3Name]) => String(up3Name || "").toUpperCase().trim() === targetUP3Clean)
+      .filter(([_, up3Name]) => resolveStandardUp3Name(up3Name as string) === targetUP3Clean)
       .map(([ulpName]) => ulpName);
 
     if (ulps.length > 0) {
@@ -197,25 +206,60 @@ export const AnomaliPage: React.FC<AnomaliPageProps> = ({ data, selectedUp3, ulp
   };
 
   const getMappedUp3ForRow = (rowUlp: string): string => {
-    const clean = cleanUlpName(rowUlp);
+    const clean = cleanUlpName(rowUlp).toUpperCase().trim();
+    
+    // Static fallback first
+    const staticMap: Record<string, string> = {
+      "BUKITTINGGI": "UP3 BUKITTINGGI",
+      "PADANG PANJANG": "UP3 BUKITTINGGI",
+      "PADANGPANJANG": "UP3 BUKITTINGGI",
+      "LUBUK SIKAPING": "UP3 BUKITTINGGI",
+      "LUBUKSIKAPING": "UP3 BUKITTINGGI",
+      "LUBUK BASUNG": "UP3 BUKITTINGGI",
+      "LUBUKBASUNG": "UP3 BUKITTINGGI",
+      "SIMPANG EMPAT": "UP3 BUKITTINGGI",
+      "SIMPANGEMPAT": "UP3 BUKITTINGGI",
+      "BASO": "UP3 BUKITTINGGI",
+      "KOTO TUO": "UP3 BUKITTINGGI",
+      "KOTOTUO": "UP3 BUKITTINGGI"
+    };
+
+    if (staticMap[clean]) {
+      return staticMap[clean];
+    }
+
     // 1. Direct lookup in map
     if (ulpToUp3Map[clean]) {
-      return ulpToUp3Map[clean];
+      return resolveStandardUp3Name(ulpToUp3Map[clean]);
     }
     // 2. Direct lookup of uncleaned
     const cleanRowUlp = rowUlp.toUpperCase().trim();
     if (ulpToUp3Map[cleanRowUlp]) {
-      return ulpToUp3Map[cleanRowUlp];
+      return resolveStandardUp3Name(ulpToUp3Map[cleanRowUlp]);
     }
     // 3. Fallback check for keys in map that are contained in or contain the clean name
-    const cleanUpper = clean.toUpperCase().trim();
     const entry = Object.entries(ulpToUp3Map).find(([key]) => {
       const k = key.toUpperCase().trim();
-      return k === cleanUpper || k.includes(cleanUpper) || cleanUpper.includes(k);
+      return k === clean || k.includes(clean) || clean.includes(k);
     });
     if (entry) {
-      return String(entry[1] || "");
+      return resolveStandardUp3Name(String(entry[1] || ""));
     }
+
+    // Dynamic fallback heuristic
+    if (clean.includes("BUKIT") || clean.includes("BASO") || clean.includes("SIKAPING") || clean.includes("BASUNG") || clean.includes("EMPAT") || clean.includes("TUO")) {
+      return "UP3 BUKITTINGGI";
+    }
+    if (clean.includes("PAYAKUMBUH") || clean.includes("BATUSANGKAR") || clean.includes("LINTAU") || clean.includes("SARILAMAK")) {
+      return "UP3 PAYAKUMBUH";
+    }
+    if (clean.includes("SOLOK") || clean.includes("SIJUNJUNG") || clean.includes("SAWAHLUNTO") || clean.includes("PUNJUNG") || clean.includes("ALAHAN")) {
+      return "UP3 SOLOK";
+    }
+    if (clean.includes("PADANG") || clean.includes("BELANTI") || clean.includes("TABING") || clean.includes("HARU") || clean.includes("PARIAMAN") || clean.includes("ALUNG") || clean.includes("SICINCIN") || clean.includes("PAINAN")) {
+      return "UP3 PADANG";
+    }
+
     return "";
   };
 
@@ -381,12 +425,12 @@ export const AnomaliPage: React.FC<AnomaliPageProps> = ({ data, selectedUp3, ulp
       if (rowUlp) {
         if (isUpSumbar) {
           // When UP SUMBAR is selected, we group by UP3 using mapped UP3 name
-          const rowMappedUp3 = getMappedUp3ForRow(rowUlp).toUpperCase().trim();
+          const rowMappedUp3 = resolveStandardUp3Name(getMappedUp3ForRow(rowUlp));
           if (rowMappedUp3) {
             currentUlpList.forEach(u => {
-              const target = u.name.toUpperCase().trim();
-              if (rowMappedUp3 === target || target.includes(rowMappedUp3) || rowMappedUp3.includes(target)) {
-                countsMap[target] = (countsMap[target] || 0) + 1;
+              const target = resolveStandardUp3Name(u.name);
+              if (rowMappedUp3 === target) {
+                countsMap[u.name.toUpperCase()] = (countsMap[u.name.toUpperCase()] || 0) + 1;
               }
             });
           }
@@ -422,10 +466,11 @@ export const AnomaliPage: React.FC<AnomaliPageProps> = ({ data, selectedUp3, ulp
     
     // Check if the target is a canonical UP3 name
     if (target.startsWith("UP3")) {
+      const standardTarget = resolveStandardUp3Name(target);
       return data.anomaliList.filter(row => {
         const rowUlp = String(row[3] || "").toUpperCase().trim();
-        const mappedUp3 = getMappedUp3ForRow(rowUlp);
-        return mappedUp3.toUpperCase() === target || target.includes(mappedUp3.toUpperCase());
+        const mappedUp3 = resolveStandardUp3Name(getMappedUp3ForRow(rowUlp));
+        return mappedUp3 === standardTarget;
       });
     }
     
