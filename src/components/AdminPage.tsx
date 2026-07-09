@@ -148,6 +148,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData 
   const [ulpList, setUlpList] = useState<any[][]>([]);
   const [up3List, setUp3List] = useState<any[][]>([]);
   const [poskoList, setPoskoList] = useState<any[][]>([]);
+  const [woPoReguNames, setWoPoReguNames] = useState<string[]>([]);
   const [loadingSettings, setLoadingSettings] = useState(false);
   const [settingsError, setSettingsError] = useState<string | null>(null);
 
@@ -193,12 +194,14 @@ export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData 
     setLoadingSettings(true);
     setSettingsError(null);
     try {
-      const [rawPetugas, rawReguCctv, rawUlp, rawUp3, rawPosko] = await Promise.all([
+      const [rawPetugas, rawReguCctv, rawUlp, rawUp3, rawPosko, rawWo, rawPo] = await Promise.all([
         GoogleSheetsService.fetchSheetDataRaw("PETUGAS").catch(() => [] as any[][]),
         GoogleSheetsService.fetchSheetDataRaw("REGU-CCTV").catch(() => [] as any[][]),
         GoogleSheetsService.fetchSheetDataRaw("ULP").catch(() => [] as any[][]),
         GoogleSheetsService.fetchSheetDataRaw("UP3").catch(() => [] as any[][]),
-        GoogleSheetsService.fetchSheetDataRaw("POSKO").catch(() => [] as any[][])
+        GoogleSheetsService.fetchSheetDataRaw("POSKO").catch(() => [] as any[][]),
+        GoogleSheetsService.fetchSheetDataRaw("WO").catch(() => [] as any[][]),
+        GoogleSheetsService.fetchSheetDataRaw("PO").catch(() => [] as any[][])
       ]);
 
       let finalPetugas = rawPetugas;
@@ -289,6 +292,59 @@ export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData 
         ];
       }
       setPoskoList(finalPosko);
+
+      // Extract unique Regu names from WO and PO sheets
+      const uniqueRegus = new Set<string>();
+
+      // Extract from rawWo
+      if (rawWo && rawWo.length > 0) {
+        const headers = rawWo[0] || [];
+        const reguIdx = headers.findIndex(h => {
+          const cleanH = String(h || "").toLowerCase().trim();
+          return ["nama regu", "user regu", "regu"].includes(cleanH);
+        });
+        if (reguIdx !== -1) {
+          for (let i = 1; i < rawWo.length; i++) {
+            const val = String(rawWo[i][reguIdx] || "").trim().toUpperCase();
+            if (val && val !== "-" && val !== "NULL" && val !== "USER REGU" && val !== "NAMA REGU") {
+              uniqueRegus.add(val);
+            }
+          }
+        }
+      }
+
+      // Extract from rawPo
+      if (rawPo && rawPo.length > 0) {
+        const headers = rawPo[0] || [];
+        const reguIdx = headers.findIndex(h => {
+          const cleanH = String(h || "").toLowerCase().trim();
+          return ["nama regu", "user regu", "regu"].includes(cleanH);
+        });
+        if (reguIdx !== -1) {
+          for (let i = 1; i < rawPo.length; i++) {
+            const val = String(rawPo[i][reguIdx] || "").trim().toUpperCase();
+            if (val && val !== "-" && val !== "NULL" && val !== "USER REGU" && val !== "NAMA REGU") {
+              uniqueRegus.add(val);
+            }
+          }
+        }
+      }
+
+      // Combine with finalRegu list to ensure current ones are also included as fallback options
+      if (finalRegu && finalRegu.length > 1) {
+        for (let i = 1; i < finalRegu.length; i++) {
+          const val = String(finalRegu[i][1] || "").trim().toUpperCase();
+          if (val && val !== "NAMA REGU" && val !== "USER REGU") {
+            uniqueRegus.add(val);
+          }
+        }
+      }
+
+      let reguNamesArray = Array.from(uniqueRegus).sort();
+      if (reguNamesArray.length === 0) {
+        reguNamesArray = ["LUBUK SIKAPING", "BUKITTINGGI", "BASO", "LUBUK BASUNG", "KOTOTUO", "PADANG PANJANG", "SIMPANG EMPAT"];
+      }
+      setWoPoReguNames(reguNamesArray);
 
       if (finalUlp.length > 1) {
         setNewPetugasUlpId(finalUlp[1][0]);
@@ -2373,14 +2429,17 @@ function otorisasiIzinDrive() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label className="text-[8px] font-black uppercase text-slate-400 tracking-wider">NAMA REGU / ULP</label>
-                        <input
-                          type="text"
+                        <select
                           value={newReguCctvName}
                           onChange={(e) => setNewReguCctvName(e.target.value)}
-                          placeholder="Contoh: KOTO TUO"
-                          className="w-full mt-1 px-3 py-2 bg-white text-[10px] font-bold text-slate-800 rounded-lg border border-slate-200 focus:border-blue-500 outline-none uppercase"
+                          className="w-full mt-1 px-3 py-2 bg-white text-[10px] font-bold text-slate-800 rounded-lg border border-slate-200 focus:border-blue-500 outline-none cursor-pointer uppercase"
                           required
-                        />
+                        >
+                          <option value="">-- PILIH REGU / ULP --</option>
+                          {woPoReguNames.map((name, idx) => (
+                            <option key={idx} value={name}>{name}</option>
+                          ))}
+                        </select>
                       </div>
                       <div>
                         <label className="text-[8px] font-black uppercase text-slate-400 tracking-wider">POSKO</label>
