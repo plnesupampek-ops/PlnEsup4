@@ -377,47 +377,49 @@ export const RatingPage: React.FC<RatingPageProps> = ({ data, selectedUp3, ulpTo
                 </thead>
                 <tbody className="bg-white">
                   {paginatedData.length > 0 ? (
-                    paginatedData.map((item, idx) => (
-                      <tr key={idx} className="border-b border-gray-50 text-[10px] font-bold italic text-brand-primary hover:bg-blue-50/30 transition-colors group">
-                        <td className="px-4 py-[5.2px] text-left border-r border-gray-50 uppercase tracking-tight group-hover:text-blue-700 font-black truncate max-w-[140px]">{item.name}</td>
-                        <td className="px-4 py-[5.2px] text-left border-r border-gray-50 uppercase tracking-tight text-gray-400 font-medium truncate max-w-[100px]">{item.ulp}</td>
-                        <td 
-                          onClick={() => handleOfficerCellClick(item.name, 'TOTAL WO', rating.totalWoPlnMobileList)}
-                          className="px-2 py-[5.2px] border-r border-gray-50 font-black text-slate-700 cursor-pointer hover:bg-slate-100 transition-colors"
-                        >
-                          {item.totalWoPlnMobile}
-                        </td>
-                        <td 
-                          onClick={() => handleOfficerCellClick(item.name, 'RATING 5', rating.rating5List)}
-                          className="px-2 py-[5.2px] border-r border-gray-50 text-emerald-600 font-black cursor-pointer hover:bg-emerald-50 transition-colors"
-                        >
-                          {item.rating5}
-                        </td>
-                        <td 
-                          onClick={() => handleOfficerCellClick(item.name, 'RATING 3-4', rating.rating34List)}
-                          className="px-2 py-[5.2px] border-r border-gray-50 text-amber-600 font-black cursor-pointer hover:bg-amber-50 transition-colors"
-                        >
-                          {item.rating34}
-                        </td>
-                        <td 
-                          onClick={() => handleOfficerCellClick(item.name, 'RATING 1-2', rating.rating12List)}
-                          className="px-2 py-[5.2px] border-r border-gray-50 text-rose-600 font-black cursor-pointer hover:bg-rose-50 transition-colors"
-                        >
-                          {item.rating12}
-                        </td>
-                        <td 
-                          onClick={() => handleOfficerCellClick(item.name, 'NO RATING', rating.noRatingList)}
-                          className="px-2 py-[5.2px] border-r border-gray-50 bg-slate-50 text-slate-800 font-medium cursor-pointer hover:bg-slate-100 transition-colors"
-                        >
-                          {item.noRating}
-                        </td>
-                        <td className="p-0">
-                          <div className={`w-full py-[5.2px] flex items-center justify-center font-black italic text-white text-[10px] ${item.percentageKomulatif === '100%' ? 'bg-emerald-500' : 'bg-rose-600'}`}>
-                            {item.percentageKomulatif}
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                    paginatedData.map((item, idx) => {
+                      return (
+                        <tr key={idx} className="border-b border-gray-50 text-[10px] font-bold italic text-brand-primary hover:bg-blue-50/30 transition-colors group">
+                          <td className="px-4 py-[5.2px] text-left border-r border-gray-50 uppercase tracking-tight group-hover:text-blue-700 font-black truncate max-w-[140px]">{item.name}</td>
+                          <td className="px-4 py-[5.2px] text-left border-r border-gray-50 uppercase tracking-tight text-gray-400 font-medium truncate max-w-[100px]">{item.ulp}</td>
+                          <td 
+                            onClick={() => handleOfficerCellClick(item.name, 'TOTAL WO', rating.totalWoPlnMobileList)}
+                            className="px-2 py-[5.2px] border-r border-gray-50 font-black text-slate-700 cursor-pointer hover:bg-slate-100 transition-colors"
+                          >
+                            {item.totalWoPlnMobile}
+                          </td>
+                          <td 
+                            onClick={() => handleOfficerCellClick(item.name, 'RATING 5', rating.rating5List)}
+                            className="px-2 py-[5.2px] border-r border-gray-50 text-emerald-600 font-black cursor-pointer hover:bg-emerald-50 transition-colors"
+                          >
+                            {item.rating5}
+                          </td>
+                          <td 
+                            onClick={() => handleOfficerCellClick(item.name, 'RATING 3-4', rating.rating34List)}
+                            className="px-2 py-[5.2px] border-r border-gray-50 text-amber-600 font-black cursor-pointer hover:bg-amber-50 transition-colors"
+                          >
+                            {item.rating34}
+                          </td>
+                          <td 
+                            onClick={() => handleOfficerCellClick(item.name, 'RATING 1-2', rating.rating12List)}
+                            className="px-2 py-[5.2px] border-r border-gray-50 text-rose-600 font-black cursor-pointer hover:bg-rose-50 transition-colors"
+                          >
+                            {item.rating12}
+                          </td>
+                          <td 
+                            onClick={() => handleOfficerCellClick(item.name, 'NO RATING', rating.noRatingList)}
+                            className="px-2 py-[5.2px] border-r border-gray-50 bg-slate-50 text-slate-800 font-medium cursor-pointer hover:bg-slate-100 transition-colors"
+                          >
+                            {item.noRating}
+                          </td>
+                          <td className="p-0">
+                            <div className={`w-full py-[5.2px] flex items-center justify-center font-black italic text-white text-[10px] ${item.percentageKomulatif === '100%' ? 'bg-emerald-500' : 'bg-rose-600'}`}>
+                              {item.percentageKomulatif}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
                   ) : (
                     <tr>
                       <td colSpan={8} className="p-20 text-center text-gray-200 font-black italic uppercase text-xs">TIDAK ADA DATA</td>
@@ -528,47 +530,49 @@ export const RatingPage: React.FC<RatingPageProps> = ({ data, selectedUp3, ulpTo
                 </thead>
                 <tbody className="bg-white">
                   {filteredKPs.length > 0 ? (
-                    filteredKPs.map((kp, idx) => (
-                      <tr key={idx} className="border-b border-gray-50 text-[10px] font-bold italic text-brand-primary hover:bg-slate-50 transition-colors group">
-                        <td className="px-4 py-[1.8px] text-left border-r border-gray-50 uppercase tracking-tight font-black group-hover:text-blue-600 truncate max-w-[140px]">{kp.namaKp}</td>
-                        <td className="px-4 py-[1.8px] text-left border-r border-gray-50 uppercase tracking-tight text-slate-400 font-bold truncate max-w-[100px]">{kp.ulp}</td>
-                        <td 
-                          onClick={() => handleKPCellClick(kp.ulp, kp.regu, 'TOTAL WO', rating.totalWoPlnMobileList)}
-                          className="px-2 py-[1.8px] border-r border-gray-50 text-slate-600 font-black cursor-pointer hover:underline hover:bg-blue-50/50 transition-all"
-                        >
-                          {kp.totalWoPlnMobile}
-                        </td>
-                        <td 
-                          onClick={() => handleKPCellClick(kp.ulp, kp.regu, 'RATING 5', rating.rating5List)}
-                          className="px-2 py-[1.8px] border-r border-gray-50 text-emerald-600 font-black cursor-pointer hover:underline hover:bg-emerald-50/50 transition-all"
-                        >
-                          {kp.rating5}
-                        </td>
-                        <td 
-                          onClick={() => handleKPCellClick(kp.ulp, kp.regu, 'RATING 3-4', rating.rating34List)}
-                          className="px-2 py-[1.8px] border-r border-gray-50 text-amber-600 font-black cursor-pointer hover:underline hover:bg-amber-50/50 transition-all"
-                        >
-                          {kp.rating34}
-                        </td>
-                        <td 
-                          onClick={() => handleKPCellClick(kp.ulp, kp.regu, 'RATING 1-2', rating.rating12List)}
-                          className="px-2 py-[1.8px] border-r border-gray-50 text-rose-600 font-black cursor-pointer hover:underline hover:bg-rose-50/50 transition-all"
-                        >
-                          {kp.rating12}
-                        </td>
-                        <td 
-                          onClick={() => handleKPCellClick(kp.ulp, kp.regu, 'NO RATING', rating.noRatingList)}
-                          className="px-2 py-[1.8px] border-r border-gray-50 bg-slate-50/50 text-slate-400 font-black cursor-pointer hover:underline hover:bg-slate-200/50 transition-all"
-                        >
-                          {kp.noRating}
-                        </td>
-                        <td className="p-0">
-                          <div className={`w-full py-[1.8px] flex items-center justify-center font-black text-white text-[10px] ${kp.percentageKomulatif === '100%' ? 'bg-emerald-500' : 'bg-rose-500'}`}>
-                            {kp.percentageKomulatif}
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                    filteredKPs.map((kp, idx) => {
+                      return (
+                        <tr key={idx} className="border-b border-gray-50 text-[10px] font-bold italic text-brand-primary hover:bg-slate-50 transition-colors group">
+                          <td className="px-4 py-[1.8px] text-left border-r border-gray-50 uppercase tracking-tight font-black group-hover:text-blue-600 truncate max-w-[140px]">{kp.namaKp}</td>
+                          <td className="px-4 py-[1.8px] text-left border-r border-gray-50 uppercase tracking-tight text-slate-400 font-bold truncate max-w-[100px]">{kp.ulp}</td>
+                          <td 
+                            onClick={() => handleKPCellClick(kp.ulp, kp.regu, 'TOTAL WO', rating.totalWoPlnMobileList)}
+                            className="px-2 py-[1.8px] border-r border-gray-50 text-slate-600 font-black cursor-pointer hover:underline hover:bg-blue-50/50 transition-all"
+                          >
+                            {kp.totalWoPlnMobile}
+                          </td>
+                          <td 
+                            onClick={() => handleKPCellClick(kp.ulp, kp.regu, 'RATING 5', rating.rating5List)}
+                            className="px-2 py-[1.8px] border-r border-gray-50 text-emerald-600 font-black cursor-pointer hover:underline hover:bg-emerald-50/50 transition-all"
+                          >
+                            {kp.rating5}
+                          </td>
+                          <td 
+                            onClick={() => handleKPCellClick(kp.ulp, kp.regu, 'RATING 3-4', rating.rating34List)}
+                            className="px-2 py-[1.8px] border-r border-gray-50 text-amber-600 font-black cursor-pointer hover:underline hover:bg-amber-50/50 transition-all"
+                          >
+                            {kp.rating34}
+                          </td>
+                          <td 
+                            onClick={() => handleKPCellClick(kp.ulp, kp.regu, 'RATING 1-2', rating.rating12List)}
+                            className="px-2 py-[1.8px] border-r border-gray-50 text-rose-600 font-black cursor-pointer hover:underline hover:bg-rose-50/50 transition-all"
+                          >
+                            {kp.rating12}
+                          </td>
+                          <td 
+                            onClick={() => handleKPCellClick(kp.ulp, kp.regu, 'NO RATING', rating.noRatingList)}
+                            className="px-2 py-[1.8px] border-r border-gray-50 bg-slate-50/50 text-slate-400 font-black cursor-pointer hover:underline hover:bg-slate-200/50 transition-all"
+                          >
+                            {kp.noRating}
+                          </td>
+                          <td className="p-0">
+                            <div className={`w-full py-[1.8px] flex items-center justify-center font-black text-white text-[10px] ${kp.percentageKomulatif === '100%' ? 'bg-emerald-500' : 'bg-rose-500'}`}>
+                              {kp.percentageKomulatif}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
                   ) : (
                     <tr>
                       <td colSpan={8} className="p-20 text-center text-slate-200 text-xs font-black uppercase italic tracking-widest">DATA KOSONG</td>
@@ -708,9 +712,7 @@ interface ULPSummaryCardProps {
 }
 
 const ULPSummaryCard: React.FC<ULPSummaryCardProps> = ({ ulp, delay }) => {
-  const percentageValue = typeof ulp.percentageKomulatif === 'string' 
-    ? parseInt(ulp.percentageKomulatif) 
-    : ulp.percentageKomulatif;
+  const isExcellent = ulp.percentageKomulatif === '100%';
 
   return (
     <motion.div
@@ -721,7 +723,7 @@ const ULPSummaryCard: React.FC<ULPSummaryCardProps> = ({ ulp, delay }) => {
     >
       <div className="bg-[#1b3d5d] px-4 py-2 flex items-center justify-between shrink-0">
         <h4 className="text-[9px] font-black italic uppercase text-white tracking-widest truncate mr-2 leading-none">{ulp.namaUlp}</h4>
-        <div className={`px-1.5 py-0.5 rounded text-[8px] font-black ${ulp.percentageKomulatif === '100%' ? 'bg-emerald-500' : 'bg-rose-500'} text-white`}>
+        <div className={`px-1.5 py-0.5 rounded text-[8px] font-black ${isExcellent ? 'bg-emerald-500' : 'bg-rose-500'} text-white`}>
           {ulp.percentageKomulatif}
         </div>
       </div>
@@ -752,9 +754,9 @@ const ULPSummaryCard: React.FC<ULPSummaryCardProps> = ({ ulp, delay }) => {
           <span className="text-xs font-black text-slate-600 leading-none">{ulp.noRating}</span>
         </div>
         {/* % */}
-        <div className={`${ulp.percentageKomulatif === '100%' ? 'bg-emerald-50' : 'bg-rose-50'} p-1.5 rounded-lg border border-current/10 flex flex-col items-center`}>
-          <span className={`text-[6px] font-black uppercase tracking-tighter mb-0.5 text-center leading-none font-sans ${ulp.percentageKomulatif === '100%' ? 'text-emerald-500' : 'text-rose-500'}`}>% KOM</span>
-          <span className={`text-xs font-black leading-none ${ulp.percentageKomulatif === '100%' ? 'text-emerald-600' : 'text-rose-600'}`}>
+        <div className={`${isExcellent ? 'bg-emerald-50' : 'bg-rose-50'} p-1.5 rounded-lg border border-current/10 flex flex-col items-center`}>
+          <span className={`text-[6px] font-black uppercase tracking-tighter mb-0.5 text-center leading-none font-sans ${isExcellent ? 'text-emerald-500' : 'text-rose-500'}`}>% KOM</span>
+          <span className={`text-xs font-black leading-none ${isExcellent ? 'text-emerald-600' : 'text-rose-600'}`}>
             {typeof ulp.percentageKomulatif === 'string' ? ulp.percentageKomulatif.replace('%', '') : ulp.percentageKomulatif}
           </span>
         </div>

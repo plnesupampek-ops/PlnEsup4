@@ -487,35 +487,84 @@ export default function App() {
       }),
       summary: {
         ...data.summary,
-        totalWo: filteredDistinctWoRows.length,
-        totalPo: filteredDistinctPoRows.length,
+        totalWo: data.summary.totalWo,
+        totalPo: data.summary.totalPo,
+        totalCctv: data.summary.totalCctv,
+        totalAnomali: data.summary.totalAnomali,
         distinctTotalWo: filteredDistinctWoRows.length,
         distinctTotalWoCctv: countWoCctv,
         distinctTotalPo: filteredDistinctPoRows.length,
         distinctTotalPoCctv: countPoCctv,
-        totalCctv: countWoCctv + countPoCctv,
         totalBaca: filteredDistinctWoRows.length + filteredDistinctPoRows.length,
         totalValid: countWoCctv + countPoCctv,
         tidakValid: (filteredDistinctWoRows.length + filteredDistinctPoRows.length) - (countWoCctv + countPoCctv)
       },
-      rating: {
-        ...data.rating,
-        officerRatings: data.rating.officerRatings.filter(o => {
-          const matchUp3 = isUlpAllowed(o.ulp);
-          const matchUlp = !selectedUlp || cleanUlp(o.ulp) === targetUlpClean;
+      rating: (() => {
+        const totalWoPlnMobileList = data.rating.totalWoPlnMobileList.filter(row => {
+          const u = cleanUlp(row[3]);
+          const up3Val = row[7];
+          const matchUp3 = !selectedUp3 || selectedUp3 === "UP SUMBAR" || selectedUp3 === "UP4 SUMBAR" || resolveStandardUp3Name(up3Val) === resolveStandardUp3Name(selectedUp3);
+          const matchUlp = !selectedUlp || u === targetUlpClean;
           return matchUp3 && matchUlp;
-        }),
-        ulpRatings: data.rating.ulpRatings.filter(u => {
-          const matchUp3 = isUlpAllowed(u.namaUlp);
-          const matchUlp = !selectedUlp || cleanUlp(u.namaUlp) === targetUlpClean;
+        });
+        const rating5List = data.rating.rating5List.filter(row => {
+          const u = cleanUlp(row[3]);
+          const up3Val = row[7];
+          const matchUp3 = !selectedUp3 || selectedUp3 === "UP SUMBAR" || selectedUp3 === "UP4 SUMBAR" || resolveStandardUp3Name(up3Val) === resolveStandardUp3Name(selectedUp3);
+          const matchUlp = !selectedUlp || u === targetUlpClean;
           return matchUp3 && matchUlp;
-        }),
-        kpRatings: data.rating.kpRatings.filter(k => {
-          const matchUp3 = isUlpAllowed(k.ulp);
-          const matchUlp = !selectedUlp || cleanUlp(k.ulp) === targetUlpClean;
+        });
+        const rating34List = data.rating.rating34List.filter(row => {
+          const u = cleanUlp(row[3]);
+          const up3Val = row[7];
+          const matchUp3 = !selectedUp3 || selectedUp3 === "UP SUMBAR" || selectedUp3 === "UP4 SUMBAR" || resolveStandardUp3Name(up3Val) === resolveStandardUp3Name(selectedUp3);
+          const matchUlp = !selectedUlp || u === targetUlpClean;
           return matchUp3 && matchUlp;
-        })
-      },
+        });
+        const rating12List = data.rating.rating12List.filter(row => {
+          const u = cleanUlp(row[3]);
+          const up3Val = row[7];
+          const matchUp3 = !selectedUp3 || selectedUp3 === "UP SUMBAR" || selectedUp3 === "UP4 SUMBAR" || resolveStandardUp3Name(up3Val) === resolveStandardUp3Name(selectedUp3);
+          const matchUlp = !selectedUlp || u === targetUlpClean;
+          return matchUp3 && matchUlp;
+        });
+        const noRatingList = data.rating.noRatingList.filter(row => {
+          const u = cleanUlp(row[3]);
+          const up3Val = row[7];
+          const matchUp3 = !selectedUp3 || selectedUp3 === "UP SUMBAR" || selectedUp3 === "UP4 SUMBAR" || resolveStandardUp3Name(up3Val) === resolveStandardUp3Name(selectedUp3);
+          const matchUlp = !selectedUlp || u === targetUlpClean;
+          return matchUp3 && matchUlp;
+        });
+
+        return {
+          ...data.rating,
+          totalWoPlnMobile: totalWoPlnMobileList.length,
+          rating5: rating5List.length,
+          rating34: rating34List.length,
+          rating12: rating12List.length,
+          noRating: noRatingList.length,
+          totalWoPlnMobileList,
+          rating5List,
+          rating34List,
+          rating12List,
+          noRatingList,
+          officerRatings: data.rating.officerRatings.filter(o => {
+            const matchUp3 = isUlpAllowed(o.ulp);
+            const matchUlp = !selectedUlp || cleanUlp(o.ulp) === targetUlpClean;
+            return matchUp3 && matchUlp;
+          }),
+          ulpRatings: data.rating.ulpRatings.filter(u => {
+            const matchUp3 = isUlpAllowed(u.namaUlp);
+            const matchUlp = !selectedUlp || cleanUlp(u.namaUlp) === targetUlpClean;
+            return matchUp3 && matchUlp;
+          }),
+          kpRatings: data.rating.kpRatings.filter(k => {
+            const matchUp3 = isUlpAllowed(k.ulp);
+            const matchUlp = !selectedUlp || cleanUlp(k.ulp) === targetUlpClean;
+            return matchUp3 && matchUlp;
+          })
+        };
+      })(),
       anomali: {
         ...data.anomali,
         totalAnomali: data.anomali.anomaliList.filter(row => {

@@ -13,6 +13,7 @@ export class GoogleSheetsService {
   private static up3Cache: any[][] | null = null;
   private static ulpCache: any[][] | null = null;
   private static poskoCache: any[][] | null = null;
+  private static cctvCache: any[][] | null = null;
   private static lastCacheFetch: number = 0;
 
   /**
@@ -40,7 +41,7 @@ export class GoogleSheetsService {
     try {
       // Fetch and parse sheets from the official Spreadsheet ID by default
       const now = Date.now();
-      if (!this.woCache || !this.poCache || !this.anomaliCache || !this.vccDataCache || !this.up3Cache || !this.ulpCache || !this.poskoCache || (now - this.lastCacheFetch > this.CACHE_DURATION_MS)) {
+      if (!this.woCache || !this.poCache || !this.anomaliCache || !this.vccDataCache || !this.up3Cache || !this.ulpCache || !this.poskoCache || !this.cctvCache || (now - this.lastCacheFetch > this.CACHE_DURATION_MS)) {
         let spreadsheetId = localStorage.getItem('google_spreadsheet_id');
         if (spreadsheetId === "1lMwrFdf-VKmmWWZ_UU_XGkvhUWvH-t16ZL4lSjDbPRU") {
           localStorage.removeItem('google_spreadsheet_id');
@@ -50,14 +51,15 @@ export class GoogleSheetsService {
           spreadsheetId = this.SPREADSHEET_ID;
         }
         console.log("Fetching live sheets from Spreadsheet ID: " + spreadsheetId);
-        const [rawWo, rawPo, rawAnomali, rawVcc, rawUp3, rawUlp, rawPosko] = await Promise.all([
+        const [rawWo, rawPo, rawAnomali, rawVcc, rawUp3, rawUlp, rawPosko, rawCctv] = await Promise.all([
           this.fetchSheetDataRaw("WO"),
           this.fetchSheetDataRaw("PO"),
           this.fetchSheetDataRaw("ANOMALI").catch(() => [] as any[][]),
           this.fetchSheetDataRaw("VCC_DATA").catch(() => [] as any[][]),
           this.fetchSheetDataRaw("UP3").catch(() => [] as any[][]),
           this.fetchSheetDataRaw("ULP").catch(() => [] as any[][]),
-          this.fetchSheetDataRaw("POSKO").catch(() => [] as any[][])
+          this.fetchSheetDataRaw("POSKO").catch(() => [] as any[][]),
+          this.fetchSheetDataRaw("CCTV").catch(() => [] as any[][])
         ]);
 
         if (rawWo && rawWo.length > 1) {
@@ -68,6 +70,7 @@ export class GoogleSheetsService {
           this.up3Cache = rawUp3 && rawUp3.length > 1 ? rawUp3 : [];
           this.ulpCache = rawUlp && rawUlp.length > 1 ? rawUlp : [];
           this.poskoCache = rawPosko && rawPosko.length > 1 ? rawPosko : [];
+          this.cctvCache = rawCctv && rawCctv.length > 1 ? rawCctv : [["Timestamp", "PO", "POSKO", "USER REGU", "TANGGAL WO", "PETUGAS", "STATUS"]];
           this.lastCacheFetch = now;
         }
       }
@@ -83,7 +86,8 @@ export class GoogleSheetsService {
           this.vccDataCache || [],
           this.up3Cache || [],
           this.ulpCache || [],
-          this.poskoCache || []
+          this.poskoCache || [],
+          this.cctvCache || []
         );
       }
     } catch (err: any) {
@@ -283,7 +287,8 @@ export class GoogleSheetsService {
     vccRows?: any[][],
     up3Rows?: any[][],
     ulpRows?: any[][],
-    poskoRows?: any[][]
+    poskoRows?: any[][],
+    cctvRows?: any[][]
   ): DashboardData {
     const standardUlps = ["BUKITTINGGI", "PADANG PANJANG", "LUBUK SIKAPING", "LUBUK BASUNG", "SIMPANG EMPAT", "BASO", "KOTO TUO"];
     const woHeaders = woRows[0] || [];
@@ -833,14 +838,28 @@ export class GoogleSheetsService {
     let latestWoDateObj: Date | null = null;
     let latestCctvDateObj: Date | null = null;
 
+    if (cctvRows && cctvRows.length > 1) {
+      cctvRows.slice(1).forEach(row => {
+        if (!row || row.length <= 4) return;
+        const d = this.parseDate(row[4] || row[0]);
+        if (d) {
+          if (!latestCctvDateObj || d > latestCctvDateObj) {
+            latestCctvDateObj = d;
+          }
+        }
+      });
+    }
+
     dataWoRows.forEach(row => {
       const d = this.parseDate(row[woIndices.tglLapor]);
       if (d) {
         if (!latestWoDateObj || d > latestWoDateObj) {
           latestWoDateObj = d;
         }
-        if (checkCctv(row[woIndices.cctv])) {
-          if (!latestCctvDateObj || d > latestCctvDateObj) {
+        if (!latestCctvDateObj && checkCctv(row[woIndices.cctv])) {
+          latestCctvDateObj = d;
+        } else if (checkCctv(row[woIndices.cctv])) {
+          if (d > latestCctvDateObj!) {
             latestCctvDateObj = d;
           }
         }
@@ -855,8 +874,10 @@ export class GoogleSheetsService {
         if (!latestPoDateObj || d > latestPoDateObj) {
           latestPoDateObj = d;
         }
-        if (checkCctv(row[poIndices.cctv])) {
-          if (!latestCctvDateObj || d > latestCctvDateObj) {
+        if (!latestCctvDateObj && checkCctv(row[poIndices.cctv])) {
+          latestCctvDateObj = d;
+        } else if (checkCctv(row[poIndices.cctv])) {
+          if (d > latestCctvDateObj!) {
             latestCctvDateObj = d;
           }
         }
@@ -889,30 +910,38 @@ export class GoogleSheetsService {
     const latestPoDate = this.formatDateIndo(latestPoDateObj);
     const latestAnomaliDate = this.formatDateIndo(latestAnomaliDateObj);
 
-    const rawTotalWo = dataWoRows.length;
-    const rawTotalWoCctv = dataWoRows.filter(r => checkCctv(r[woIndices.cctv])).length;
-    const rawTotalPo = dataPoRows.length;
-    const rawTotalPoCctv = dataPoRows.filter(r => checkCctv(r[poIndices.cctv])).length;
-    const rawTotalCctv = rawTotalWoCctv + rawTotalPoCctv;
+    // Unfiltered raw totals of sheets
+    const rawWoCount = woRows.slice(1).filter(row => row && row.length > 0 && String(row[0] || "").trim() !== "").length;
+    const rawPoCount = poRows.slice(1).filter(row => row && row.length > 0 && String(row[0] || "").trim() !== "").length;
+    const rawAnomaliCount = anomaliRows.slice(1).filter(row => row && row.length > 0 && String(row[0] || "").trim() !== "").length;
+
+    let rawCctvCount = 0;
+    if (cctvRows && cctvRows.length > 1) {
+      rawCctvCount = cctvRows.slice(1).filter(row => row && row.length > 0 && String(row[0] || "").trim() !== "").length;
+    } else {
+      const rawTotalWoCctv = dataWoRows.filter(r => checkCctv(r[woIndices.cctv])).length;
+      const rawTotalPoCctv = dataPoRows.filter(r => checkCctv(r[poIndices.cctv])).length;
+      rawCctvCount = rawTotalWoCctv + rawTotalPoCctv;
+    }
 
     const summary = {
       totalBaca,
       totalValid,
       tidakValid,
-      totalPo: rawTotalPo,
+      totalPo: rawPoCount,
       totalPoCctv,
       distinctTotalWo: totalBaca,
       distinctTotalWoCctv: totalValid,
       distinctTotalPo: totalPo,
       distinctTotalPoCctv: totalPoCctv,
       lastSync: new Date().toLocaleString('id-ID'),
-      dataAktif: rawTotalWo + rawTotalPo,
-      totalWo: rawTotalWo,
+      dataAktif: rawWoCount + rawPoCount,
+      totalWo: rawWoCount,
       latestWoDate,
-      totalCctv: rawTotalCctv,
+      totalCctv: rawCctvCount,
       latestCctvDate,
       latestPoDate,
-      totalAnomali: fullAnomRows.length,
+      totalAnomali: rawAnomaliCount,
       latestAnomaliDate,
     };
 
@@ -1013,29 +1042,9 @@ export class GoogleSheetsService {
     };
 
     // ==========================================
-    // CRITICAL REQUIREMENT: OFF-LINE UNIQUE DEDUPLICATION FOR RATING CARD, Ringkasan Data ULP, Rating Per Kantor Pelayanan, and PERSENTASE WO PER UNIT (ULP)
+    // RATING PAGE CALCULATION: DIRECT UNFILTERED COUNT FOR PLN MOBILE RECORDS
     // ==========================================
-    const uniqueWoMap = new Map<string, any[]>();
-    dataWoRows.forEach(row => {
-      const noLaporan = String(row[13] || "").trim();
-      if (noLaporan) {
-        const existing = uniqueWoMap.get(noLaporan);
-        if (!existing) {
-          uniqueWoMap.set(noLaporan, row);
-        } else {
-          // Prefer compiling rows having a customer star rating
-          const existingRating = String(existing[woIndices.rating] || "").trim();
-          const currentRating = String(row[woIndices.rating] || "").trim();
-          if (!existingRating && currentRating) {
-            uniqueWoMap.set(noLaporan, row);
-          }
-        }
-      }
-    });
-
-    const uniqueWoRowsForRating = Array.from(uniqueWoMap.values());
-
-    const plnMobileRows = uniqueWoRowsForRating.filter(row => {
+    const plnMobileRows = rawFilteredWoRows.filter(row => {
       const src = String(row[woIndices.source] || "").trim();
       return src.toLowerCase() === "pln mobile";
     });
@@ -1056,7 +1065,7 @@ export class GoogleSheetsService {
 
     const mapRowToRatingList = (row: any[]) => {
       const noLaporan = String(row[13] || "").trim();
-      const docs = dataWoRows
+      const docs = rawFilteredWoRows
         .filter(r => String(r[13] || "").trim() === noLaporan)
         .map(r => String(r[woIndices.name] || "").trim())
         .filter(Boolean);
@@ -1070,7 +1079,8 @@ export class GoogleSheetsService {
         this.cleanUlpName(row[woIndices.ulp]),
         String(row[woIndices.rating] || "").trim() || "-",
         String(row[woIndices.source] || "").trim(),
-        String(row[woIndices.regu] || "REGU ALFA").trim().toUpperCase()
+        String(row[woIndices.regu] || "REGU ALFA").trim().toUpperCase(),
+        row[woIndices.up3] || "" // Index 7: Standardized UP3 Name
       ];
     };
 
@@ -1091,7 +1101,7 @@ export class GoogleSheetsService {
     const officerToUlpRatingMap = new Map<string, string>();
     const officerToReguRatingMap = new Map<string, string>();
 
-    dataWoRows.forEach(row => {
+    rawFilteredWoRows.forEach(row => {
       const name = String(row[woIndices.name] || "").trim();
       const ulp = this.cleanUlpName(row[woIndices.ulp]);
       const regu = String(row[9] || "REGU ALFA").trim().toUpperCase();
@@ -1103,16 +1113,10 @@ export class GoogleSheetsService {
     });
 
     plnMobileRows.forEach(row => {
-      const noLaporan = String(row[13] || "").trim();
+      const name = String(row[woIndices.name] || "").trim();
       const rate = String(row[woIndices.rating] || "").trim();
 
-      const assigned = dataWoRows
-        .filter(r => String(r[13] || "").trim() === noLaporan)
-        .map(r => String(r[woIndices.name] || "").trim())
-        .filter(Boolean);
-      const uniqueAssigned = Array.from(new Set(assigned));
-
-      uniqueAssigned.forEach(name => {
+      if (name) {
         if (!officerRatingsMap[name]) {
           officerRatingsMap[name] = { totalPM: 0, r5: 0, r34: 0, r12: 0, none: 0 };
         }
@@ -1121,7 +1125,7 @@ export class GoogleSheetsService {
         else if (rate === "3" || rate === "4") officerRatingsMap[name].r34++;
         else if (rate === "1" || rate === "2") officerRatingsMap[name].r12++;
         else officerRatingsMap[name].none++;
-      });
+      }
     });
 
     const officerRatings: OfficerRating[] = Object.keys(officerRatingsMap).map(name => {
@@ -1620,6 +1624,19 @@ export class GoogleSheetsService {
       ["PBK07", "POSKO ULP KOTO TUO", "UP03"]
     ];
 
+    const mockCctvRows = [
+      ["Timestamp", "PO", "POSKO", "USER REGU", "TANGGAL WO", "PETUGAS", "STATUS"],
+      ...Array.from({ length: 4307 }, (_, i) => [
+        "6/1/2026 0:17:51",
+        `P013260601${i}`,
+        "POSKO ULP BUKITTINGGI",
+        "REGU ALFA",
+        "6/1/2026 0:17:51",
+        "PETUGAS MOCK",
+        "CCTV"
+      ])
+    ];
+
     return this.compileDashboardDataFromRaw(
       rawWoRows, 
       rawPoRows, 
@@ -1630,7 +1647,8 @@ export class GoogleSheetsService {
       [],
       mockUp3Rows,
       mockUlpRows,
-      mockPoskoRows
+      mockPoskoRows,
+      mockCctvRows
     );
   }
 }
