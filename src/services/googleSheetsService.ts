@@ -911,13 +911,13 @@ export class GoogleSheetsService {
     const latestAnomaliDate = this.formatDateIndo(latestAnomaliDateObj);
 
     // Unfiltered raw totals of sheets
-    const rawWoCount = woRows.slice(1).filter(row => row && row.length > 0 && String(row[0] || "").trim() !== "").length;
-    const rawPoCount = poRows.slice(1).filter(row => row && row.length > 0 && String(row[0] || "").trim() !== "").length;
-    const rawAnomaliCount = anomaliRows.slice(1).filter(row => row && row.length > 0 && String(row[0] || "").trim() !== "").length;
+    const rawWoCount = woRows.slice(1).filter(row => row && row.length > 0 && row.some(cell => cell !== undefined && cell !== null && String(cell).trim() !== "")).length;
+    const rawPoCount = poRows.slice(1).filter(row => row && row.length > 0 && row.some(cell => cell !== undefined && cell !== null && String(cell).trim() !== "")).length;
+    const rawAnomaliCount = anomaliRows.slice(1).filter(row => row && row.length > 0 && row.some(cell => cell !== undefined && cell !== null && String(cell).trim() !== "")).length;
 
     let rawCctvCount = 0;
     if (cctvRows && cctvRows.length > 1) {
-      rawCctvCount = cctvRows.slice(1).filter(row => row && row.length > 0 && String(row[0] || "").trim() !== "").length;
+      rawCctvCount = cctvRows.slice(1).filter(row => row && row.length > 0 && row.some(cell => cell !== undefined && cell !== null && String(cell).trim() !== "")).length;
     } else {
       const rawTotalWoCctv = dataWoRows.filter(r => checkCctv(r[woIndices.cctv])).length;
       const rawTotalPoCctv = dataPoRows.filter(r => checkCctv(r[poIndices.cctv])).length;
