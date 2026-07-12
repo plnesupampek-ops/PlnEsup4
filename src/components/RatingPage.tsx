@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
-import { Award, TrendingUp, Users, Zap, ShieldCheck, ChevronLeft, ChevronRight, RotateCcw, PieChart as PieIcon } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Award, TrendingUp, Users, Zap, ShieldCheck, ChevronLeft, ChevronRight, RotateCcw, PieChart as PieIcon, Download } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { DashboardData } from '../types.ts';
+import * as XLSX from 'xlsx';
 
 interface RatingPageProps {
   data: DashboardData;
@@ -146,6 +147,51 @@ export const RatingPage: React.FC<RatingPageProps> = ({ data, selectedUp3, ulpTo
     return matchUnit && matchRegu;
   });
 
+  const handleExportOfficerRatingExcel = () => {
+    const headers = ["Nama Petugas", "Unit (ULP)", "Total WO", "Rating 5", "Rating 3-4", "Rating 1-2", "No Rating", "% Komulatif"];
+    const rows = filteredOfficers.map(item => [
+      item.name,
+      item.ulp,
+      item.totalWoPlnMobile,
+      item.rating5,
+      item.rating34,
+      item.rating12,
+      item.noRating,
+      item.percentageKomulatif
+    ]);
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Rating Petugas");
+    XLSX.writeFile(wb, `Rating_Petugas_${new Date().getTime()}.xlsx`);
+  };
+
+  const handleExportKpRatingExcel = () => {
+    const headers = ["Kantor Pelayanan", "Unit (ULP)", "Total WO", "Rating 5", "Rating 3-4", "Rating 1-2", "No Rating", "% Komulatif"];
+    const rows = filteredKPs.map(kp => [
+      kp.namaKp,
+      kp.ulp,
+      kp.totalWoPlnMobile,
+      kp.rating5,
+      kp.rating34,
+      kp.rating12,
+      kp.noRating,
+      kp.percentageKomulatif
+    ]);
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Rating Kantor Pelayanan");
+    XLSX.writeFile(wb, `Rating_Kantor_Pelayanan_${new Date().getTime()}.xlsx`);
+  };
+
+  const handleExportModalRatingExcel = () => {
+    const headers = ["No Laporan", "Tanggal", "Nama Petugas", "ULP", "Rating", "Sumber Lapor"];
+    const rows = modalData.data.map(row => row.slice(0, 6));
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Detail Rating");
+    XLSX.writeFile(wb, `${modalData.title.replace(/\s+/g, '_')}_${new Date().getTime()}.xlsx`);
+  };
+
   return (
     <div className="flex flex-col gap-8 relative px-2 pb-12">
       {modalData.isOpen && (
@@ -160,12 +206,21 @@ export const RatingPage: React.FC<RatingPageProps> = ({ data, selectedUp3, ulpTo
                 <ShieldCheck className="text-brand-secondary" size={24} />
                 <h3 className="text-xl font-black italic tracking-tighter uppercase">DETAIL DATA: {modalData.title}</h3>
               </div>
-              <button 
-                onClick={() => setModalData(prev => ({ ...prev, isOpen: false }))}
-                className="bg-white/10 hover:bg-white/20 p-2 rounded-full transition-colors"
-              >
-                <ChevronLeft size={24} className="rotate-90 md:rotate-0" />
-              </button>
+              <div className="flex items-center gap-2.5">
+                <button
+                  onClick={handleExportModalRatingExcel}
+                  className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white px-3.5 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-sm border border-white/10"
+                >
+                  <Download size={12} />
+                  Download Excel
+                </button>
+                <button 
+                  onClick={() => setModalData(prev => ({ ...prev, isOpen: false }))}
+                  className="bg-white/10 hover:bg-white/20 p-2 rounded-full transition-colors"
+                >
+                  <ChevronLeft size={24} className="rotate-90 md:rotate-0" />
+                </button>
+              </div>
             </div>
             
             <div className="flex-1 overflow-auto p-6 bg-gray-50">
@@ -305,6 +360,14 @@ export const RatingPage: React.FC<RatingPageProps> = ({ data, selectedUp3, ulpTo
                 <div>
                   <h3 className="text-sm font-black italic tracking-tighter uppercase leading-none">RATING PER PETUGAS</h3>
                 </div>
+                <button
+                  onClick={handleExportOfficerRatingExcel}
+                  className="ml-2 flex items-center gap-1 bg-white/10 hover:bg-white/20 text-white border border-white/10 px-2.5 py-1 rounded text-[9px] font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer"
+                  title="Download Excel Rating Petugas"
+                >
+                  <Download size={10} />
+                  Excel
+                </button>
               </div>
               <div className="flex flex-wrap items-center gap-1.5 justify-end max-w-[50%]">
                 <div className="flex items-center gap-1.5 bg-white/10 px-2 py-1 rounded-xl border border-white/20">
@@ -464,6 +527,14 @@ export const RatingPage: React.FC<RatingPageProps> = ({ data, selectedUp3, ulpTo
                 <div>
                   <h3 className="text-sm font-black italic tracking-tighter uppercase leading-none">RATING PER KANTOR PELAYANAN</h3>
                 </div>
+                <button
+                  onClick={handleExportKpRatingExcel}
+                  className="ml-2 flex items-center gap-1 bg-white/10 hover:bg-white/20 text-white border border-white/10 px-2.5 py-1 rounded text-[9px] font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer"
+                  title="Download Excel Rating Kantor Pelayanan"
+                >
+                  <Download size={10} />
+                  Excel
+                </button>
               </div>
               <div className="flex flex-wrap items-center gap-1.5 justify-end max-w-[50%]">
                 <div className="flex items-center gap-1.5 bg-white/10 px-2 py-1 rounded-xl border border-white/20">

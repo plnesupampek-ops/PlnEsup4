@@ -1,6 +1,7 @@
 import React from 'react';
 import { ULPPerformance } from '../types';
-import { Building2, TrendingUp } from 'lucide-react';
+import { Building2, TrendingUp, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 interface ULPPerformanceTableProps {
   data: ULPPerformance[];
@@ -8,6 +9,32 @@ interface ULPPerformanceTableProps {
 }
 
 export const ULPPerformanceTable: React.FC<ULPPerformanceTableProps> = ({ data, onDetailClick }) => {
+  const handleExportExcel = () => {
+    const headers = [
+      "Unit Layanan (ULP)", "WO Total", "WO CCTV", "Persen WO (%)", "PO Total", "PO CCTV", "Persen PO (%)", "Total Performa (%)"
+    ];
+    const rows = data.map(item => {
+      const woVal = parseFloat(item.persenWo) || 0;
+      const poVal = parseFloat(item.persenPo) || 0;
+      const totalAvg = ((woVal + poVal) / 2).toFixed(2);
+      return [
+        item.ulp,
+        item.jumlahWoTotal,
+        item.totalWoPakaiCctv,
+        item.persenWo,
+        item.jumlahPoTotal,
+        item.totalPoPakaiCctv,
+        item.persenPo,
+        `${totalAvg}%`
+      ];
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Kinerja ULP");
+    XLSX.writeFile(wb, `Kinerja_ULP_${new Date().getTime()}.xlsx`);
+  };
+
   return (
     <div className="dashboard-card flex flex-col mt-6">
       <div className="bg-gradient-to-r from-[#1b3d5d] to-[#06b6d4] p-4 flex items-center justify-between shrink-0">
@@ -17,9 +44,19 @@ export const ULPPerformanceTable: React.FC<ULPPerformanceTableProps> = ({ data, 
           </div>
           <h3 className="text-[11px] font-black text-white tracking-widest uppercase">REKAPITULASI KINERJA PER ULP</h3>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[9px] font-bold text-brand-accent uppercase">SUMMARY</span>
-          <TrendingUp size={12} className="text-brand-accent" />
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleExportExcel}
+            className="flex items-center gap-1 bg-white/15 hover:bg-white/25 text-white border border-white/10 px-2.5 py-1 rounded text-[9px] font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer"
+            title="Download Excel Kinerja ULP"
+          >
+            <Download size={10} />
+            Download Excel
+          </button>
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] font-bold text-brand-accent uppercase">SUMMARY</span>
+            <TrendingUp size={12} className="text-brand-accent" />
+          </div>
         </div>
       </div>
 

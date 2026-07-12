@@ -6,6 +6,7 @@ import {
   Key, 
   Camera, 
   Upload, 
+  Download,
   Trash2, 
   Settings2, 
   CheckCircle2, 
@@ -26,6 +27,7 @@ import {
   X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import * as XLSX from 'xlsx';
 import { GoogleSheetsService } from '../services/googleSheetsService';
 import { UploadDataYoSubpage } from './UploadDataYoSubpage';
 
@@ -921,6 +923,76 @@ export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData 
     sessionStorage.removeItem('admin_authenticated');
     sessionStorage.removeItem('is_super_admin');
     setPassword('');
+  };
+
+  const handleExportAdminAnomaliExcel = () => {
+    const headers = ["NO", "NO TUGAS", "TANGGAL LAPOR", "NAMA PETUGAS", "ULP", "JENIS ANOMALI", "DESKRIPSI", "RPT", "RCT"];
+    const rows = filteredRows.map((row, idx) => [
+      idx + 1,
+      row[0] || "-",
+      row[1] || "-",
+      row[2] || "-",
+      row[3] || "-",
+      row[4] || "-",
+      row[5] || "-",
+      row[6] || "-",
+      row[7] || "-"
+    ]);
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Matrix Eviden Anomali");
+    XLSX.writeFile(wb, `MATRIX_EVIDEN_ANOMALI_${new Date().getTime()}.xlsx`);
+  };
+
+  const handleExportAdminTindakLanjutExcel = () => {
+    const headers = ["NO", "NAMA PETUGAS", "ULP", "TARGET SKOR YO", "PENCAPAIAN SKOR YO", "KINERJA YO (%)"];
+    const rows = filteredRows.map((officer, idx) => [
+      idx + 1,
+      officer.name || "-",
+      officer.ulp || "-",
+      "15.00",
+      officer.score !== undefined ? officer.score : 0,
+      officer.percent !== undefined ? officer.percent : 0
+    ]);
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Tindak Lanjut Kinerja");
+    XLSX.writeFile(wb, `TINDAK_LANJUT_KINERJA_${new Date().getTime()}.xlsx`);
+  };
+
+  const handleExportMasterPetugasExcel = () => {
+    const headers = ["NO", "ID", "NAMA PETUGAS", "ULP UNIT"];
+    const rows = filteredPetugas.map((row, idx) => {
+      const ulpRow = ulpList.find(r => String(r[0]).trim() === String(row[2]).trim());
+      const ulpName = ulpRow ? ulpRow[1] : row[2];
+      return [
+        idx + 1,
+        row[0] || "-",
+        row[1] || "-",
+        ulpName || "-"
+      ];
+    });
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Master Petugas");
+    XLSX.writeFile(wb, `MASTER_PETUGAS_${new Date().getTime()}.xlsx`);
+  };
+
+  const handleExportMasterReguExcel = () => {
+    const headers = ["NO", "ID", "NAMA REGU", "POSKO"];
+    const rows = filteredReguCctv.map((row, idx) => {
+      const poskoName = getPoskoName(row);
+      return [
+        idx + 1,
+        row[0] || "-",
+        row[1] || "-",
+        poskoName || "-"
+      ];
+    });
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Master Regu");
+    XLSX.writeFile(wb, `MASTER_REGU_${new Date().getTime()}.xlsx`);
   };
 
   const [showSupabaseKey, setShowSupabaseKey] = useState(false);
@@ -2614,23 +2686,33 @@ function otorisasiIzinDrive() {
             </AnimatePresence>
 
             {/* Search Bar */}
-            <div className="p-3 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
-              <Search size={12} className="text-slate-400" />
-              <input
-                type="text"
-                value={settingPetugasSearch}
-                onChange={(e) => setSettingPetugasSearch(e.target.value)}
-                placeholder="Cari ID, Nama, atau ULP Petugas..."
-                className="bg-transparent text-slate-700 text-[10px] font-bold outline-none w-full placeholder:text-slate-400"
-              />
-              {settingPetugasSearch && (
-                <button
-                  onClick={() => setSettingPetugasSearch('')}
-                  className="text-[9px] font-black text-slate-400 hover:text-slate-600 uppercase"
-                >
-                  Clear
-                </button>
-              )}
+            <div className="p-3 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 flex-1">
+                <Search size={12} className="text-slate-400" />
+                <input
+                  type="text"
+                  value={settingPetugasSearch}
+                  onChange={(e) => setSettingPetugasSearch(e.target.value)}
+                  placeholder="Cari ID, Nama, atau ULP Petugas..."
+                  className="bg-transparent text-slate-700 text-[10px] font-bold outline-none w-full placeholder:text-slate-400"
+                />
+                {settingPetugasSearch && (
+                  <button
+                    onClick={() => setSettingPetugasSearch('')}
+                    className="text-[9px] font-black text-slate-400 hover:text-slate-600 uppercase"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <button
+                onClick={handleExportMasterPetugasExcel}
+                className="flex items-center gap-1 bg-white hover:bg-slate-50 text-[#1b3d5d] px-2.5 py-1 rounded-lg text-[8px] font-black tracking-widest uppercase transition-all active:scale-95 border border-slate-200 shadow-sm"
+                title="Download Excel Master Petugas"
+              >
+                <Download size={8} className="stroke-[3]" />
+                EXCEL
+              </button>
             </div>
 
             {/* List */}
@@ -2845,23 +2927,33 @@ function otorisasiIzinDrive() {
             </AnimatePresence>
 
             {/* Search Bar */}
-            <div className="p-3 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
-              <Search size={12} className="text-slate-400" />
-              <input
-                type="text"
-                value={settingReguSearch}
-                onChange={(e) => setSettingReguSearch(e.target.value)}
-                placeholder="Cari ID, Nama Regu, atau Posko..."
-                className="bg-transparent text-slate-700 text-[10px] font-bold outline-none w-full placeholder:text-slate-400"
-              />
-              {settingReguSearch && (
-                <button
-                  onClick={() => setSettingReguSearch('')}
-                  className="text-[9px] font-black text-slate-400 hover:text-slate-600 uppercase"
-                >
-                  Clear
-                </button>
-              )}
+            <div className="p-3 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 flex-1">
+                <Search size={12} className="text-slate-400" />
+                <input
+                  type="text"
+                  value={settingReguSearch}
+                  onChange={(e) => setSettingReguSearch(e.target.value)}
+                  placeholder="Cari ID, Nama Regu, atau Posko..."
+                  className="bg-transparent text-slate-700 text-[10px] font-bold outline-none w-full placeholder:text-slate-400"
+                />
+                {settingReguSearch && (
+                  <button
+                    onClick={() => setSettingReguSearch('')}
+                    className="text-[9px] font-black text-slate-400 hover:text-slate-600 uppercase"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <button
+                onClick={handleExportMasterReguExcel}
+                className="flex items-center gap-1 bg-white hover:bg-slate-50 text-[#1b3d5d] px-2.5 py-1 rounded-lg text-[8px] font-black tracking-widest uppercase transition-all active:scale-95 border border-slate-200 shadow-sm"
+                title="Download Excel Master Regu"
+              >
+                <Download size={8} className="stroke-[3]" />
+                EXCEL
+              </button>
             </div>
 
             {/* List */}
@@ -3025,6 +3117,16 @@ function otorisasiIzinDrive() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Download Excel Button */}
+            <button
+              onClick={adminSubTab === 'ANOMALI' ? handleExportAdminAnomaliExcel : handleExportAdminTindakLanjutExcel}
+              className="flex items-center gap-1.5 bg-white hover:bg-slate-50 text-slate-850 px-3 py-1.5 rounded-xl text-[10px] font-black tracking-widest uppercase transition-all active:scale-95 shadow-md border border-slate-200"
+              title="Download Excel Data Admin"
+            >
+              <Download size={11} className="stroke-[3]" />
+              EXCEL
+            </button>
+
             <div className="relative w-56 flex items-center gap-1.5 bg-white/10 px-3 py-1.5 rounded-xl border border-white/20">
               <Search size={11} className="text-white/75" />
               <input

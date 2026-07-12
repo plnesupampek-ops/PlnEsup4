@@ -2,7 +2,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { OverSLAData } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { motion } from 'motion/react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 interface OverSLAPageProps {
   data: OverSLAData;
@@ -30,6 +31,15 @@ export const OverSLAPage: React.FC<OverSLAPageProps> = ({ data, onDetailClick })
     }
   };
 
+  const handleExportOverSlaRptExcel = () => {
+    const headers = ["No Laporan", "Tgl Laporan", "Nama Petugas", "RPT", "RCT"];
+    const rows = data.woOverSlaRptList;
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Over SLA RPT");
+    XLSX.writeFile(wb, `Over_SLA_RPT_${new Date().getTime()}.xlsx`);
+  };
+
   return (
     <div className="flex flex-col gap-8 relative px-2 pb-12">
       {/* Top Section - 3 Columns */}
@@ -51,17 +61,25 @@ export const OverSLAPage: React.FC<OverSLAPageProps> = ({ data, onDetailClick })
             </div>
           </div>
         </div>
-
+ 
         {/* Center Column - Large Table (col-span-6) */}
         <div className="lg:col-span-6 h-full">
           <div className="bg-white rounded-xl border border-gray-100 overflow-hidden flex flex-col shadow-sm h-full">
-            <div className="px-6 py-4 flex items-center justify-between bg-gradient-to-r from-[#1b3d5d] to-[#06b6d4] text-white">
+            <div className="px-6 py-4 flex items-center justify-between bg-gradient-to-r from-[#1b3d5d] to-[#06b6d4] text-white shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-1.5 h-6 bg-white/30 rounded-full" />
                 <h3 className="text-sm font-black italic tracking-tighter uppercase">
                   DAFTAR WO <span className="text-green-100">OVER SLA RPT</span>
                 </h3>
               </div>
+              <button
+                onClick={handleExportOverSlaRptExcel}
+                className="flex items-center gap-1 bg-white/10 hover:bg-white/20 text-white border border-white/10 px-2.5 py-1 rounded text-[9px] font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer shadow-sm"
+                title="Download Excel Over SLA RPT"
+              >
+                <Download size={10} />
+                Excel
+              </button>
             </div>
             
             <div className="overflow-x-auto flex-1 max-h-[520px] overflow-y-auto">
@@ -248,38 +266,59 @@ const SmallTable: React.FC<{
   color: string; 
   highlightCol?: number;
   headerBg?: string;
-}> = ({ title, subtitle, headers, data, color, highlightCol, headerBg }) => (
-  <div className="bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
-    <div className={`px-4 py-2 flex items-center gap-2 ${headerBg ? `${headerBg} text-white` : 'border-b border-gray-50 bg-gray-50/50'}`}>
-      <div className={`w-1 h-3 rounded-full ${headerBg ? 'bg-white/30' : ''}`} style={!headerBg ? { backgroundColor: color } : {}} />
-      <h4 className="text-sm font-black italic tracking-tighter uppercase">
-        {title} <span style={!headerBg ? { color } : {}} className={headerBg ? 'text-white/80' : ''}>{subtitle}</span>
-      </h4>
-    </div>
-    <div className="overflow-x-auto">
-      <table className="w-full">
-        <thead>
-          <tr className="border-b border-gray-50">
-            <th className="px-3 py-1.5 text-left text-sm font-bold text-gray-400 uppercase">#</th>
-            {headers.map((h, i) => (
-              <th key={i} className={`px-3 py-1.5 text-left text-sm font-bold text-gray-400 uppercase ${i === headers.length - 1 ? 'text-right' : ''}`}>{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-50">
-          {data.map((row, idx) => (
-            <tr key={idx} className="hover:bg-gray-50 transition-colors">
-              <td className="px-3 py-1.5 text-[12px] text-gray-400 font-mono">{idx + 1}</td>
-              {row.map((cell, i) => (
-                <td key={i} className={`px-3 py-1.5 text-[12px] font-bold ${i === row.length - 1 ? 'text-right' : 'text-gray-700 truncate max-w-[150px]'} ${i === highlightCol ? 'text-brand-secondary bg-brand-secondary/5' : ''}`}>
-                  {cell}
-                </td>
+}> = ({ title, subtitle, headers, data, color, highlightCol, headerBg }) => {
+  const handleExportExcel = () => {
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, title.substring(0, 30));
+    XLSX.writeFile(wb, `${title.replace(/\s+/g, '_')}_${subtitle.replace(/\s+/g, '_')}_${new Date().getTime()}.xlsx`);
+  };
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
+      <div className={`px-4 py-2 flex items-center justify-between ${headerBg ? `${headerBg} text-white` : 'border-b border-gray-50 bg-gray-50/50'}`}>
+        <div className="flex items-center gap-2">
+          <div className={`w-1 h-3 rounded-full ${headerBg ? 'bg-white/30' : ''}`} style={!headerBg ? { backgroundColor: color } : {}} />
+          <h4 className="text-sm font-black italic tracking-tighter uppercase">
+            {title} <span style={!headerBg ? { color } : {}} className={headerBg ? 'text-white/80' : ''}>{subtitle}</span>
+          </h4>
+        </div>
+        <button
+          onClick={handleExportExcel}
+          className={`p-1 rounded-lg border cursor-pointer hover:bg-white/20 active:scale-95 transition-all flex items-center justify-center ${
+            headerBg ? 'border-white/10 text-white hover:bg-white/10' : 'border-gray-200 text-gray-500 hover:bg-gray-100'
+          }`}
+          title={`Download Excel ${title} ${subtitle}`}
+        >
+          <Download size={11} />
+        </button>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-gray-50">
+              <th className="px-3 py-1.5 text-left text-sm font-bold text-gray-400 uppercase">#</th>
+              {headers.map((h, i) => (
+                <th key={i} className={`px-3 py-1.5 text-left text-sm font-bold text-gray-400 uppercase ${i === headers.length - 1 ? 'text-right' : ''}`}>{h}</th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {data.map((row, idx) => (
+              <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                <td className="px-3 py-1.5 text-[12px] text-gray-400 font-mono">{idx + 1}</td>
+                {row.map((cell, i) => (
+                  <td key={i} className={`px-3 py-1.5 text-[12px] font-bold ${i === row.length - 1 ? 'text-right' : 'text-gray-700 truncate max-w-[150px]'} ${i === highlightCol ? 'text-brand-secondary bg-brand-secondary/5' : ''}`}>
+                    {cell}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
-  </div>
-);
+  );
+};
+
 

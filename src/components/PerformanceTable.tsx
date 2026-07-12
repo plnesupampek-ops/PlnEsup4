@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { OfficerPerformance } from '../types';
-import { Users, ChevronRight, TrendingUp } from 'lucide-react';
+import { Users, ChevronRight, TrendingUp, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 interface PerformanceTableProps {
   data: OfficerPerformance[];
@@ -22,6 +23,33 @@ export const PerformanceTable: React.FC<PerformanceTableProps> = ({ data, onDeta
     currentPage * itemsPerPage
   );
 
+  const handleExportExcel = () => {
+    const headers = [
+      "Nama Petugas", "ULP", "WO Total", "WO CCTV", "Persen WO (%)", "PO Total", "PO CCTV", "Persen PO (%)", "Total Performa (%)"
+    ];
+    const rows = data.map(item => {
+      const woVal = parseFloat(item.persenWo) || 0;
+      const poVal = parseFloat(item.persenPo) || 0;
+      const totalAvg = ((woVal + poVal) / 2).toFixed(2);
+      return [
+        item.name,
+        item.ulp,
+        item.jumlahWoTotal,
+        item.totalWoPakaiCctv,
+        item.persenWo,
+        item.jumlahPoTotal,
+        item.totalPoPakaiCctv,
+        item.persenPo,
+        `${totalAvg}%`
+      ];
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Kinerja Petugas");
+    XLSX.writeFile(wb, `Kinerja_Petugas_${new Date().getTime()}.xlsx`);
+  };
+
   return (
     <div className="dashboard-card flex flex-col">
       <div className="bg-gradient-to-r from-[#06b6d4] to-[#1b3d5d] p-4 flex items-center justify-between shrink-0">
@@ -31,9 +59,19 @@ export const PerformanceTable: React.FC<PerformanceTableProps> = ({ data, onDeta
           </div>
           <h3 className="text-[11px] font-black text-white tracking-widest uppercase">KINERJA PETUGAS</h3>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[9px] font-bold text-brand-accent uppercase">PERINGKAT</span>
-          <TrendingUp size={12} className="text-brand-accent" />
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleExportExcel}
+            className="flex items-center gap-1 bg-white/15 hover:bg-white/25 text-white border border-white/10 px-2.5 py-1 rounded text-[9px] font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer"
+            title="Download Excel Kinerja Petugas"
+          >
+            <Download size={10} />
+            Download Excel
+          </button>
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] font-bold text-brand-accent uppercase">PERINGKAT</span>
+            <TrendingUp size={12} className="text-brand-accent" />
+          </div>
         </div>
       </div>
 

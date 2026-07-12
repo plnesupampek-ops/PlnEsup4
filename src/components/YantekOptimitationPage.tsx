@@ -21,8 +21,10 @@ import {
   RefreshCw,
   Info,
   X,
-  Search
+  Search,
+  Download
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { 
   BarChart, 
   Bar, 
@@ -1746,6 +1748,81 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
     );
   }, [modalOfficersList, modalSearchTerm]);
 
+  const handleExportOfficerPerformanceExcel = () => {
+    const headers = ["Nama Petugas", "Total Nilai YO (%)", "Nilai Hari Kerja (%)", "Nilai Produktivitas (%)", "Nilai Performa WO + PO (%)"];
+    const rows = officerPerformanceData.map(row => [
+      row.name,
+      row.totalNilaiYo,
+      row.nilaiHariKerja,
+      row.nilaiProduktivitas,
+      row.nilaiPerformaWoPo
+    ]);
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Performa Petugas");
+    XLSX.writeFile(wb, `Performa_Petugas_${new Date().getTime()}.xlsx`);
+  };
+
+  const handleExportThresholdExcel = () => {
+    const headers = ["Nama Unit", "UP3", "Target Rata2 Performa (%)", "Real Rata2 Performa (%)", "Zona Hijau", "Zona Kuning", "Zona Merah", "Total Petugas"];
+    const rows = thresholdTableData.rows.map(row => [
+      row.name,
+      row.up3,
+      row.targetRate,
+      row.realRate,
+      row.green,
+      row.yellow,
+      row.red,
+      row.totalPetugas
+    ]);
+    rows.push([
+      isUpSumbarMode ? "TOTAL SUMBAR" : "TOTAL UP3",
+      "",
+      thresholdTableData.totalUp3.targetRate,
+      thresholdTableData.totalUp3.realRate,
+      thresholdTableData.totalUp3.green,
+      thresholdTableData.totalUp3.yellow,
+      thresholdTableData.totalUp3.red,
+      thresholdTableData.totalUp3.totalPetugas
+    ]);
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Threshold");
+    XLSX.writeFile(wb, `Threshold_Penilaian_${new Date().getTime()}.xlsx`);
+  };
+
+  const handleExportBottomOfficersExcel = () => {
+    const headers = ["Nama Petugas Yantek", "Nama ULP", "Target Skor YO", "Pencapaian Skor YO", "% Pencapaian Kinerja YO"];
+    const rows = bottomOfficers.map(off => [
+      off.name,
+      off.ulp,
+      off.targetScore,
+      off.score,
+      off.percent
+    ]);
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Tindak Lanjut");
+    XLSX.writeFile(wb, `Tindak_Lanjut_Petugas_${new Date().getTime()}.xlsx`);
+  };
+
+  const handleExportModalOfficersExcel = () => {
+    const headers = ["Nama Petugas", "Nama ULP", "% Skor", "Skor Hari Kerja", "Skor Performa", "Skor Produktivitas", "Total Skor"];
+    const rows = filteredModalOfficers.map(off => [
+      off.employeeName,
+      off.namaUlp,
+      off.persentaseSkor,
+      off.skorHariKerja,
+      off.skorPerforma,
+      off.skorProduktivitas,
+      off.totalSkor
+    ]);
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Detail Petugas");
+    XLSX.writeFile(wb, `${clickedCell?.title.replace(/\s+/g, '_') || 'Detail_Petugas'}_${new Date().getTime()}.xlsx`);
+  };
+
   return (
     <div className="flex flex-col gap-8 relative px-2 pb-12">
       
@@ -1811,6 +1888,14 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
             <div className="flex items-center gap-2">
               <div className="w-1.5 h-5 bg-brand-secondary rounded-full" />
               <h3 className="text-sm font-black italic tracking-tighter text-brand-primary uppercase">PERFORMA PER PETUGAS</h3>
+              <button
+                onClick={handleExportOfficerPerformanceExcel}
+                className="ml-2 flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 px-2.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer shadow-sm"
+                title="Download Excel Performa Per Petugas"
+              >
+                <Download size={10} />
+                Excel
+              </button>
             </div>
             <div className="flex items-center gap-2 text-[10px] text-gray-400 font-bold">
               <Info size={12} />
@@ -1967,6 +2052,14 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
           <div className="flex items-center gap-2">
             <Sliders size={16} className="text-brand-primary" />
             <h3 className="text-sm font-black italic tracking-tighter text-brand-primary uppercase">THRESHOLD PENILAIAN & ALOKASI PETUGAS</h3>
+            <button
+              onClick={handleExportThresholdExcel}
+              className="ml-2 flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 px-2.5 py-1 rounded text-[9px] font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer shadow-sm"
+              title="Download Excel Threshold"
+            >
+              <Download size={10} />
+              Excel
+            </button>
           </div>
           {!isUpSumbarMode && (
             <div className="flex items-center gap-2">
@@ -2106,6 +2199,14 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
           <div className="flex items-center gap-2">
             <Award className="text-rose-500" size={18} />
             <h3 className="text-sm font-black italic tracking-tighter text-brand-primary uppercase">TINDAK LANJUT EVALUASI PETUGAS (PERFORMA {"<60%"})</h3>
+            <button
+              onClick={handleExportBottomOfficersExcel}
+              className="ml-2 flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 px-2.5 py-1 rounded text-[9px] font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer shadow-sm"
+              title="Download Excel Tindak Lanjut"
+            >
+              <Download size={10} />
+              Excel
+            </button>
           </div>
           <span className="px-3 py-1 bg-rose-50 text-rose-600 border border-rose-150 rounded-full text-[9px] font-black uppercase">
             Terdeteksi: {bottomOfficers.length} Orang
@@ -2284,8 +2385,17 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
                     </button>
                   )}
                 </div>
-                <div className="text-[10px] font-black uppercase text-slate-500 flex items-center gap-1.5 bg-slate-200/50 px-3 py-1.5 rounded-md">
-                  TERDETEKSI: <span className="text-[#154c79]">{filteredModalOfficers.length} PETUGAS</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleExportModalOfficersExcel}
+                    className="flex items-center gap-1.5 bg-[#154c79] hover:bg-[#0f3758] text-white px-3 py-1.5 rounded-md text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-sm"
+                  >
+                    <Download size={11} />
+                    Download Excel
+                  </button>
+                  <div className="text-[10px] font-black uppercase text-slate-500 flex items-center gap-1.5 bg-slate-200/50 px-3 py-1.5 rounded-md">
+                    TERDETEKSI: <span className="text-[#154c79]">{filteredModalOfficers.length} PETUGAS</span>
+                  </div>
                 </div>
               </div>
 

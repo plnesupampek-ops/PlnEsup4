@@ -986,6 +986,23 @@ export const AnomaliPage: React.FC<AnomaliPageProps> = ({ data, selectedUp3, ulp
     XLSX.writeFile(wb, `${name}_${new Date().getTime()}.xlsx`);
   };
 
+  // Excel Export for Tindak Lanjut table
+  const handleExportTindakLanjutExcel = () => {
+    const headers = ["NO", "ULP", "NAMA PETUGAS", "NO TUGAS / NO LAPORAN", "JENIS ANOMALI", "KETERANGAN / DESKRIPSI"];
+    const rows = tindakLanjutData.map((row, idx) => [
+      idx + 1,
+      row[3] || "-",
+      row[2] || "-",
+      row[0] || "-",
+      row[4] || "-",
+      row[5] || "-"
+    ]);
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Tindak Lanjut Anomali");
+    XLSX.writeFile(wb, `TINDAK_LANJUT_ANOMALI_${new Date().getTime()}.xlsx`);
+  };
+
   // Helpers for filtering modal
   const filteredModalRows = useMemo(() => {
     if (!detailModal) return [];
@@ -1566,10 +1583,22 @@ export const AnomaliPage: React.FC<AnomaliPageProps> = ({ data, selectedUp3, ulp
                 </p>
               </div>
               
-              {/* Quick Counter */}
-              <div className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-lg border border-slate-150 self-start">
-                <span className="text-[7.5px] font-extrabold text-[#1b3d5d] uppercase tracking-widest">Temuan:</span>
-                <span className="text-[10px] font-black text-rose-500 tabular-nums">{tindakLanjutData.length}</span>
+              <div className="flex items-center gap-2 self-start">
+                {/* Download Excel Button */}
+                <button
+                  onClick={handleExportTindakLanjutExcel}
+                  className="flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-[#1b3d5d] px-2.5 py-1 rounded-lg text-[8px] font-black tracking-widest uppercase transition-all active:scale-95 border border-slate-200"
+                  title="Download Excel Tindak Lanjut Anomali"
+                >
+                  <Download size={8} className="stroke-[3]" />
+                  EXCEL
+                </button>
+
+                {/* Quick Counter */}
+                <div className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-lg border border-slate-150">
+                  <span className="text-[7.5px] font-extrabold text-[#1b3d5d] uppercase tracking-widest">Temuan:</span>
+                  <span className="text-[10px] font-black text-rose-500 tabular-nums">{tindakLanjutData.length}</span>
+                </div>
               </div>
             </div>
 
