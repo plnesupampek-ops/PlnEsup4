@@ -1747,7 +1747,7 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
   }, [modalOfficersList, modalSearchTerm]);
 
   return (
-    <div className="flex flex-col gap-6 p-6 bg-[#0a1128]/5 rounded-2xl min-h-full border border-gray-100">
+    <div className="flex flex-col gap-8 relative px-2 pb-12">
       
       {/* 1. Header & Summary Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

@@ -24,7 +24,7 @@ export const PerformanceTable: React.FC<PerformanceTableProps> = ({ data, onDeta
 
   return (
     <div className="dashboard-card flex flex-col">
-      <div className="bg-indigo-500 p-4 flex items-center justify-between shrink-0">
+      <div className="bg-gradient-to-r from-[#06b6d4] to-[#1b3d5d] p-4 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <div className="bg-brand-secondary p-1.5 rounded text-white">
             <Users size={14} />

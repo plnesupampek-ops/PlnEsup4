@@ -177,45 +177,9 @@ export class GoogleSheetsService {
    * Validates if a row has matched POSKO and Nama Regu combinations exactly as requested by user
    */
   public static isValidCctvRow(posko: string, regu: string): boolean {
-    const p = String(posko || "").toUpperCase().trim();
-    const r = String(regu || "").toUpperCase().trim();
-
-    // Direct exact matches of requested criteria (case-insensitive)
-    if (p === "POSKO ULP BUKITTINGGI" && r === "BUKITTINGGI") return true;
-    if (p === "POSKO ULP PADANG PANJANG" && r === "PADANGPANJANG") return true;
-    if (p === "POSKO ULP LUBUK SIKAPING" && r === "LUBUK SIKAPING") return true;
-    if (p === "POSKO ULP LUBUK BASUNG" && r === "LUBUK BASUNG") return true;
-    if (p === "POSKO ULP SIMPANG EMPAT" && r === "SIMPANG EMPAT") return true;
-    if (p === "POSKO ULP BASO" && r === "BASO") return true;
-    if (p === "POSKO ULP KOTO TUO" && r === "KOTOTUO") return true;
-
-    // Normalization fallback for slight spelling variants
-    const pClean = p.replace(/^POSKO\s+ULP\s+/i, "").replace(/^ULP\s+/i, "").replace(/^POSKO\s+/i, "").trim();
-    const rClean = r.replace(/\s+/g, "");
-
-    const allowedPairs: { [key: string]: string } = {
-      "BUKITTINGGI": "BUKITTINGGI",
-      "BUKITTIINGGI": "BUKITTINGGI",
-      "PADANG PANJANG": "PADANGPANJANG",
-      "LUBUK SIKAPING": "LUBUKSIKAPING",
-      "LUBUK BASUNG": "LUBUKBASUNG",
-      "SIMPANG EMPAT": "SIMPANGEMPAT",
-      "BASO": "BASO",
-      "KOTO TUO": "KOTOTUO",
-      "KOTOTUO": "KOTOTUO"
-    };
-
-    const targetRegu = allowedPairs[pClean];
-    if (targetRegu) {
-      return rClean === targetRegu;
-    }
-
-    // Fallback comparison if they match when clean
-    if (pClean && rClean && pClean.replace(/\s+/g, "") === rClean) {
-      return true;
-    }
-
-    return false;
+    const p = String(posko || "").trim();
+    if (!p) return false;
+    return true;
   }
 
   /**

@@ -31,13 +31,13 @@ export const OverSLAPage: React.FC<OverSLAPageProps> = ({ data, onDetailClick })
   };
 
   return (
-    <div className="flex flex-col gap-6 p-6 bg-sky-100 rounded-2xl min-h-full">
+    <div className="flex flex-col gap-8 relative px-2 pb-12">
       {/* Top Section - 3 Columns */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column - Summary Cards (col-span-2) */}
         <div className="lg:col-span-2 h-full">
           <div className="bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm h-full flex flex-col">
-            <div className="px-4 py-2 bg-orange-500 text-white flex items-center gap-2 shrink-0">
+            <div className="px-4 py-2 bg-gradient-to-r from-[#06b6d4] to-[#1b3d5d] text-white flex items-center gap-2 shrink-0">
               <h4 className="text-sm font-black italic tracking-tighter uppercase">RINGKASAN DATA</h4>
             </div>
             <div className="p-3 flex flex-col gap-3 flex-1 bg-gray-50/30">
@@ -55,7 +55,7 @@ export const OverSLAPage: React.FC<OverSLAPageProps> = ({ data, onDetailClick })
         {/* Center Column - Large Table (col-span-6) */}
         <div className="lg:col-span-6 h-full">
           <div className="bg-white rounded-xl border border-gray-100 overflow-hidden flex flex-col shadow-sm h-full">
-            <div className="px-6 py-4 flex items-center justify-between bg-green-600 text-white">
+            <div className="px-6 py-4 flex items-center justify-between bg-gradient-to-r from-[#1b3d5d] to-[#06b6d4] text-white">
               <div className="flex items-center gap-3">
                 <div className="w-1.5 h-6 bg-white/30 rounded-full" />
                 <h3 className="text-sm font-black italic tracking-tighter uppercase">
@@ -133,7 +133,7 @@ export const OverSLAPage: React.FC<OverSLAPageProps> = ({ data, onDetailClick })
             data={data.officerOverSlaRpt.map(o => [o.name, o.count])}
             color="#EF5350"
             highlightCol={1}
-            headerBg="bg-red-600"
+            headerBg="bg-gradient-to-r from-[#06b6d4] to-[#1b3d5d]"
           />
 
           {/* Officer RCT Table */}
@@ -144,7 +144,7 @@ export const OverSLAPage: React.FC<OverSLAPageProps> = ({ data, onDetailClick })
             data={data.officerOverSlaRct.map(o => [o.name, o.count])}
             color="#FF7043"
             highlightCol={1}
-            headerBg="bg-red-600"
+            headerBg="bg-gradient-to-r from-[#1b3d5d] to-[#06b6d4]"
           />
         </div>
       </div>

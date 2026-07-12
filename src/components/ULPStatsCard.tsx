@@ -41,7 +41,7 @@ export const ULPStatsCard: React.FC<ULPStatsCardProps> = ({ ulpData, allUlps, on
 
   return (
     <div className="dashboard-card flex flex-col mt-6 flex-1">
-      <div className="bg-emerald-500 p-4 flex items-center justify-between shrink-0">
+      <div className="bg-gradient-to-r from-[#06b6d4] to-[#1b3d5d] p-4 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <div className="bg-brand-accent p-1.5 rounded text-brand-primary">
             <Building2 size={14} />

@@ -14,7 +14,7 @@ export const WOUP3Card: React.FC<WOUP3CardProps> = ({ totalWo, totalWoCctv, onDe
 
   return (
     <div className="dashboard-card flex flex-col shrink-0">
-      <div className="bg-emerald-500 p-4 flex items-center justify-between shrink-0">
+      <div className="bg-gradient-to-r from-[#06b6d4] to-[#1b3d5d] p-4 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
           <div className="bg-brand-secondary p-1 rounded text-white">
             <ClipboardList size={12} />

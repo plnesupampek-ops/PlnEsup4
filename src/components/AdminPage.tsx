@@ -2055,7 +2055,7 @@ function otorisasiIzinDrive() {
 
   // AUTHENTICATED PANEL
   return (
-    <div id="admin_dashboard_root" className="flex flex-col gap-6 p-6 bg-slate-50/50 rounded-2xl min-h-full">
+    <div id="admin_dashboard_root" className="flex flex-col gap-8 relative px-2 pb-12">
       
       {/* Simple Status & Logout Header Bar */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white rounded-3xl p-5 border border-slate-200 shadow-sm gap-4 transition-all">

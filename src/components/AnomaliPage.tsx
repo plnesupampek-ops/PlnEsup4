@@ -1013,7 +1013,7 @@ export const AnomaliPage: React.FC<AnomaliPageProps> = ({ data, selectedUp3, ulp
   };
 
   return (
-    <div id="anomali_page_outer" className="flex flex-col gap-6 p-6 bg-slate-50/50 rounded-2xl min-h-full">
+    <div id="anomali_page_outer" className="flex flex-col gap-8 relative px-2 pb-12">
       
       {/* Row 1 Grid: All cards aligned in a single row */}
       <div 
