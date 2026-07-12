@@ -761,6 +761,19 @@ export default function App() {
     setModalOpen(true);
   };
 
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      const result = await GoogleSheetsService.fetchData(startDate, endDate, selectedUlp, true);
+      setData(result);
+      setError(null);
+    } catch (err) {
+      console.error("Failed manual refresh:", err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   useEffect(() => {
     const loadData = async (showLoading = false) => {
       // If we already have data and are just changing ULP, we don't need a full-page loader
@@ -770,7 +783,8 @@ export default function App() {
       if (needsFullLoader) setIsRefreshing(true);
       
       try {
-        const result = await GoogleSheetsService.fetchData(startDate, endDate, selectedUlp);
+        // Pass forceRefresh = true to ensure the dashboard instantly reflects spreadsheet changes
+        const result = await GoogleSheetsService.fetchData(startDate, endDate, selectedUlp, true);
         const hasData = result.officerPerformance.length > 0 || result.summary.dataAktif > 0;
         if (!hasData) {
           setError("Tidak ada data yang ditemukan untuk rentang tanggal ini.");
@@ -787,7 +801,7 @@ export default function App() {
     };
 
     loadData(!data);
-    const interval = setInterval(() => loadData(false), 30000);
+    const interval = setInterval(() => loadData(false), 20000); // Poll every 20 seconds for high responsiveness
     return () => clearInterval(interval);
   }, [startDate, endDate, selectedUlp]);
 
@@ -945,7 +959,11 @@ export default function App() {
                 selectedUp3={selectedUp3}
               />
             ) : (
-              <AdminPage anomaliList={data.anomali.anomaliList} vccData={data.vccData} />
+              <AdminPage 
+                anomaliList={data.anomali.anomaliList} 
+                vccData={data.vccData} 
+                onRefreshData={handleManualRefresh}
+              />
             )}
           </motion.div>
         </AnimatePresence>

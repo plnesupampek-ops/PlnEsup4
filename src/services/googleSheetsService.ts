@@ -24,7 +24,8 @@ export class GoogleSheetsService {
   public static async fetchData(
     startDate: string,
     endDate: string,
-    selectedUlp: string
+    selectedUlp: string,
+    forceRefresh = false
   ): Promise<DashboardData> {
     const storedUrlWo = localStorage.getItem('google_sheet_url_wo');
     const storedUrlPo = localStorage.getItem('google_sheet_url_po');
@@ -41,7 +42,7 @@ export class GoogleSheetsService {
     try {
       // Fetch and parse sheets from the official Spreadsheet ID by default
       const now = Date.now();
-      if (!this.woCache || !this.poCache || !this.anomaliCache || !this.vccDataCache || !this.up3Cache || !this.ulpCache || !this.poskoCache || !this.cctvCache || (now - this.lastCacheFetch > this.CACHE_DURATION_MS)) {
+      if (forceRefresh || !this.woCache || !this.poCache || !this.anomaliCache || !this.vccDataCache || !this.up3Cache || !this.ulpCache || !this.poskoCache || !this.cctvCache || (now - this.lastCacheFetch > this.CACHE_DURATION_MS)) {
         let spreadsheetId = localStorage.getItem('google_spreadsheet_id');
         if (spreadsheetId === "1lMwrFdf-VKmmWWZ_UU_XGkvhUWvH-t16ZL4lSjDbPRU") {
           localStorage.removeItem('google_spreadsheet_id');
@@ -50,7 +51,7 @@ export class GoogleSheetsService {
         if (!spreadsheetId) {
           spreadsheetId = this.SPREADSHEET_ID;
         }
-        console.log("Fetching live sheets from Spreadsheet ID: " + spreadsheetId);
+        console.log("Fetching live sheets from Spreadsheet ID: " + spreadsheetId + " (forceRefresh=" + forceRefresh + ")");
         const [rawWo, rawPo, rawAnomali, rawVcc, rawUp3, rawUlp, rawPosko, rawCctv] = await Promise.all([
           this.fetchSheetDataRaw("WO"),
           this.fetchSheetDataRaw("PO"),
@@ -66,7 +67,72 @@ export class GoogleSheetsService {
           this.woCache = rawWo;
           this.poCache = rawPo && rawPo.length > 1 ? rawPo : [["No Tugas", "Tgl Catat", "Posko", "Personil Yantek", "CCTV", "Status"]];
           this.anomaliCache = rawAnomali && rawAnomali.length > 1 ? rawAnomali : [["Timestamp", "NOMOR WO YANTEK DENGAN CCTV", "POSKO ULP", "USER REGU", "TANGGAL WO", "Anomali", "KETERANGAN ANOMALI"]];
-          this.vccDataCache = rawVcc && rawVcc.length > 1 ? rawVcc : [];
+          
+          // Merge custom VCC uploads with live Google Sheets VCC data, skipping duplicates
+          let mergedVcc = rawVcc && rawVcc.length > 1 ? [...rawVcc] : [];
+          
+          const healRow = (row: any[]): string[] => {
+            if (!row || row.length === 0) return [];
+            if (row.length === 1 && typeof row[0] === 'string') {
+              const val = row[0];
+              if (val.startsWith('PK\x03\x04') || val.includes('[Content_Types].xml') || val.startsWith('PK\u0003\u0004')) {
+                return []; // skip binary junk
+              }
+              const delimiter = val.includes('\t') ? '\t' : val.includes(';') ? ';' : val.includes(',') ? ',' : '';
+              if (delimiter) {
+                const cells: string[] = [];
+                let current = '';
+                let inQuotes = false;
+                for (let i = 0; i < val.length; i++) {
+                  const char = val[i];
+                  if (char === '"') inQuotes = !inQuotes;
+                  else if (char === delimiter && !inQuotes) {
+                    cells.push(current.replace(/^"|"$/g, '').trim());
+                    current = '';
+                  } else {
+                    current += char;
+                  }
+                }
+                cells.push(current.replace(/^"|"$/g, '').trim());
+                return cells;
+              }
+            }
+            return row.map(val => String(val || "").trim());
+          };
+
+          // Heal rawVcc first
+          mergedVcc = mergedVcc.map(healRow).filter(r => r.length > 0);
+
+          try {
+            const customVccStr = localStorage.getItem('custom_vcc_data');
+            if (customVccStr) {
+              const customVcc: any[][] = JSON.parse(customVccStr);
+              if (Array.isArray(customVcc) && customVcc.length > 0) {
+                if (mergedVcc.length === 0) {
+                  mergedVcc = [["No Lapor", "Tgl Lapor", "Nama Petugas", "Nama ULP", "Total Skor", "Persentase Skor"]];
+                }
+                const existingSet = new Set(
+                  mergedVcc.slice(1).map(row => 
+                    row.map(val => String(val || "").trim().toLowerCase()).join("||")
+                  )
+                );
+                
+                customVcc.forEach(rawRow => {
+                  const row = healRow(rawRow);
+                  if (row.length === 0) return;
+                  const key = row.map(val => String(val || "").trim().toLowerCase()).join("||");
+                  if (!existingSet.has(key)) {
+                    mergedVcc.push(row);
+                    existingSet.add(key);
+                  }
+                });
+              }
+            }
+          } catch (e) {
+            console.error("Failed to merge custom vcc data:", e);
+          }
+          this.vccDataCache = mergedVcc;
+
           this.up3Cache = rawUp3 && rawUp3.length > 1 ? rawUp3 : [];
           this.ulpCache = rawUlp && rawUlp.length > 1 ? rawUlp : [];
           this.poskoCache = rawPosko && rawPosko.length > 1 ? rawPosko : [];

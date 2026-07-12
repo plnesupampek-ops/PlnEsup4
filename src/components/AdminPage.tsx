@@ -27,10 +27,12 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { GoogleSheetsService } from '../services/googleSheetsService';
+import { UploadDataYoSubpage } from './UploadDataYoSubpage';
 
 interface AdminPageProps {
   anomaliList: any[][]; // Table row structure: [No Laporan, Tgl Laporan, Nama Petugas, ULP, Jenis Anomali, Deskripsi, RPT, RCT]
   vccData?: any[][];
+  onRefreshData?: () => void;
 }
 
 export interface EvidenUpload {
@@ -109,7 +111,7 @@ const compressImage = (file: File, maxWidth: number = 1200, maxHeight: number = 
   });
 };
 
-export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData = [] }) => {
+export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData = [], onRefreshData }) => {
   // Authentication states
   const [password, setPassword] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -143,7 +145,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData 
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
-  const [adminSubTab, setAdminSubTab] = useState<'ANOMALI' | 'TINDAK_LANJUT' | 'SETTING'>('ANOMALI');
+  const [adminSubTab, setAdminSubTab] = useState<'ANOMALI' | 'TINDAK_LANJUT' | 'UPLOAD_DATA_YO' | 'SETTING'>('ANOMALI');
 
   // New master settings states
   const [petugasList, setPetugasList] = useState<any[][]>([]);
@@ -1293,6 +1295,51 @@ export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData 
         .setMimeType(ContentService.MimeType.JSON);
       } else {
         throw new Error("Regu CCTV dengan ID '" + idToEdit + "' tidak ditemukan.");
+      }
+    }
+    
+    // Tambah VCC DATA (Sheet VCC_DATA)
+    if (data && data.action === 'append_vcc_data') {
+      var ss = SpreadsheetApp.openById(spreadsheetId.trim());
+      var sheet = ss.getSheetByName("VCC_DATA");
+      if (!sheet) {
+        throw new Error("Sheet 'VCC_DATA' tidak ditemukan di Spreadsheet.");
+      }
+      var rowsToAppend = data.rows || [];
+      if (rowsToAppend.length > 0) {
+        var lastRow = sheet.getLastRow();
+        var existingSigs = {};
+        if (lastRow > 0) {
+          var allValues = sheet.getRange(1, 1, lastRow, sheet.getLastColumn()).getValues();
+          for (var r = 0; r < allValues.length; r++) {
+            var sig = allValues[r].map(function(c) { return String(c || '').trim().toLowerCase(); }).join('||');
+            existingSigs[sig] = true;
+          }
+        }
+        
+        var addedCount = 0;
+        for (var i = 0; i < rowsToAppend.length; i++) {
+          var row = rowsToAppend[i];
+          var sig = row.map(function(c) { return String(c || '').trim().toLowerCase(); }).join('||');
+          if (!existingSigs[sig]) {
+            sheet.appendRow(row);
+            existingSigs[sig] = true;
+            addedCount++;
+          }
+        }
+        return ContentService.createTextOutput(JSON.stringify({
+          success: true,
+          message: "Berhasil menambahkan " + addedCount + " baris data baru ke VCC_DATA!",
+          addedCount: addedCount
+        }))
+        .setMimeType(ContentService.MimeType.JSON);
+      } else {
+        return ContentService.createTextOutput(JSON.stringify({
+          success: true,
+          message: "Tidak ada baris data yang ditambahkan.",
+          addedCount: 0
+        }))
+        .setMimeType(ContentService.MimeType.JSON);
       }
     }
     
@@ -2471,6 +2518,16 @@ function otorisasiIzinDrive() {
           🔴 TINDAK LANJUT PETUGAS TERBAWAH {"<60%"} ({bottomOfficers.length})
         </button>
         <button
+          onClick={() => setAdminSubTab('UPLOAD_DATA_YO')}
+          className={`flex-1 py-3 text-center text-xs font-black tracking-wider uppercase rounded-xl transition-all cursor-pointer ${
+            adminSubTab === 'UPLOAD_DATA_YO'
+              ? 'bg-slate-800 text-white shadow-md font-bold'
+              : 'text-slate-600 hover:text-slate-800 hover:bg-slate-200'
+          }`}
+        >
+          📤 UPLOAD DATA YO ({vccData.length > 1 ? vccData.length - 1 : 0})
+        </button>
+        <button
           onClick={() => setAdminSubTab('SETTING')}
           className={`flex-1 py-3 text-center text-xs font-black tracking-wider uppercase rounded-xl transition-all cursor-pointer ${
             adminSubTab === 'SETTING'
@@ -2948,6 +3005,8 @@ function otorisasiIzinDrive() {
           </div>
 
         </div>
+      ) : adminSubTab === 'UPLOAD_DATA_YO' ? (
+        <UploadDataYoSubpage vccData={vccData} onRefreshData={onRefreshData} />
       ) : (
         <div className="bg-white rounded-3xl border border-gray-150 shadow-sm overflow-hidden flex flex-col gap-4">
         
