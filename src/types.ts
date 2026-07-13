@@ -47,6 +47,14 @@ export interface DashboardData {
   rawPoRows: any[][];
   distinctWoRows: any[][];
   distinctPoRows: any[][];
+  cctvOfficerPerformance?: OfficerPerformance[];
+  cctvUlpPerformance?: ULPPerformance[];
+  cctvCctvUsage?: CCTVUsage[];
+  cctvDistinctWoRows?: any[][];
+  cctvDistinctPoRows?: any[][];
+  cctvDataWoRows?: any[][];
+  cctvDataPoRows?: any[][];
+  reguCctvList?: string[];
   woHeaders: string[];
   poHeaders: string[];
   woIndices: { up3: number; name: number; ulp: number; cctv: number; tglLapor: number; tglPengerjaan: number; tglSelesai: number; source: number; reporter: number; shift: number; rpt: number; rct: number };

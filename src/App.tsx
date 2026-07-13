@@ -204,17 +204,20 @@ export default function App() {
       return s.includes("CCTV") || s.includes("PAKAI") || s.includes("YA") || s.includes("VIDEO") || s.includes("FOTO") || s.includes("ADA");
     };
 
+    const sourceWoRows = activeTab === 'CCTV' ? (data.cctvDistinctWoRows || []) : data.distinctWoRows;
+    const sourcePoRows = activeTab === 'CCTV' ? (data.cctvDistinctPoRows || []) : data.distinctPoRows;
+
     return up3s.map(up3Name => {
       const cleanUp3Str = up3Name.toUpperCase().replace(/^UP3\s+/i, "").replace(/[^A-Z0-9]/g, "").trim();
 
       // Filter WO rows for this UP3
-      const woRowsForUp3 = data.distinctWoRows.filter(row => {
+      const woRowsForUp3 = sourceWoRows.filter(row => {
         const rowUp3 = String(row[data.woIndices.up3] || "").toUpperCase().replace(/^UP3\s+/i, "").replace(/[^A-Z0-9]/g, "").trim();
         return rowUp3 === cleanUp3Str;
       });
 
       // Filter PO rows for this UP3
-      const poRowsForUp3 = data.distinctPoRows.filter(row => {
+      const poRowsForUp3 = sourcePoRows.filter(row => {
         const rowUp3 = String(row[data.poIndices.up3] || "").toUpperCase().replace(/^UP3\s+/i, "").replace(/[^A-Z0-9]/g, "").trim();
         return rowUp3 === cleanUp3Str;
       });
@@ -242,7 +245,7 @@ export default function App() {
         persenPenggunaanCctv
       };
     });
-  }, [data]);
+  }, [data, activeTab]);
 
   // Memoized filter logic
   const filteredData = React.useMemo(() => {
@@ -458,6 +461,65 @@ export default function App() {
       }
     }
 
+    const filteredCctvOfficerPerformance = (data.cctvOfficerPerformance || []).filter(o => {
+      const matchUp3 = isUlpAllowed(o.ulp);
+      const matchUlp = !selectedUlp || cleanUlp(o.ulp) === targetUlpClean;
+      return matchUp3 && matchUlp;
+    }).sort((a, b) => {
+      const avgA = (parseFloat(a.persenWo) || 0) + (parseFloat(a.persenPo) || 0);
+      const avgB = (parseFloat(b.persenWo) || 0) + (parseFloat(b.persenPo) || 0);
+      return avgB - avgA;
+    });
+
+    const filteredCctvUlpPerformance = (data.cctvUlpPerformance || []).filter(u => {
+      const matchUp3 = isUlpAllowed(u.ulp);
+      const matchUlp = !selectedUlp || cleanUlp(u.ulp) === targetUlpClean;
+      return matchUp3 && matchUlp;
+    }).sort((a, b) => {
+      const avgA = (parseFloat(a.persenWo) || 0) + (parseFloat(a.persenPo) || 0);
+      const avgB = (parseFloat(b.persenWo) || 0) + (parseFloat(b.persenPo) || 0);
+      return avgB - avgA;
+    });
+
+    const filteredCctvCctvUsage = (data.cctvCctvUsage || []).filter(u => {
+      const matchUp3 = isUlpAllowed(u.ulp);
+      const matchUlp = !selectedUlp || cleanUlp(u.ulp) === targetUlpClean;
+      return matchUp3 && matchUlp;
+    });
+
+    const filteredCctvDistinctWoRows = (data.cctvDistinctWoRows || []).filter(row => {
+      const matchUp3 = rowMatchUp3(row, data.woIndices.up3);
+      const matchUlp = !selectedUlp || cleanUlp(row[data.woIndices.ulp]) === targetUlpClean;
+      return matchUp3 && matchUlp;
+    });
+
+    const filteredCctvDistinctPoRows = (data.cctvDistinctPoRows || []).filter(row => {
+      const matchUp3 = rowMatchUp3(row, data.poIndices.up3);
+      const matchUlp = !selectedUlp || cleanUlp(row[data.poIndices.ulp]) === targetUlpClean;
+      return matchUp3 && matchUlp;
+    });
+
+    const cctvCountWoCctv = filteredCctvDistinctWoRows.filter(row => {
+      const s = String(row[data.woIndices.cctv] || "").toUpperCase();
+      return s.includes("CCTV") || s.includes("PAKAI") || s.includes("YA") || s.includes("VIDEO") || s.includes("FOTO") || s.includes("ADA");
+    }).length;
+
+    const cctvCountPoCctv = filteredCctvDistinctPoRows.filter(row => {
+      const s = String(row[data.poIndices.cctv] || "").toUpperCase();
+      return s.includes("CCTV") || s.includes("PAKAI") || s.includes("YA") || s.includes("VIDEO") || s.includes("FOTO") || s.includes("ADA");
+    }).length;
+
+    const cctvSummary = {
+      ...data.summary,
+      distinctTotalWo: filteredCctvDistinctWoRows.length,
+      distinctTotalWoCctv: cctvCountWoCctv,
+      distinctTotalPo: filteredCctvDistinctPoRows.length,
+      distinctTotalPoCctv: cctvCountPoCctv,
+      totalBaca: filteredCctvDistinctWoRows.length + filteredCctvDistinctPoRows.length,
+      totalValid: cctvCountWoCctv + cctvCountPoCctv,
+      tidakValid: (filteredCctvDistinctWoRows.length + filteredCctvDistinctPoRows.length) - (cctvCountWoCctv + cctvCountPoCctv)
+    };
+
     return {
       ...data,
       vccData: filteredVccData,
@@ -485,6 +547,22 @@ export default function App() {
         const avgB = (parseFloat(b.persenWo) || 0) + (parseFloat(b.persenPo) || 0);
         return avgB - avgA;
       }),
+      cctvOfficerPerformance: filteredCctvOfficerPerformance,
+      cctvUlpPerformance: filteredCctvUlpPerformance,
+      cctvCctvUsage: filteredCctvCctvUsage,
+      cctvDistinctWoRows: filteredCctvDistinctWoRows,
+      cctvDistinctPoRows: filteredCctvDistinctPoRows,
+      cctvDataWoRows: (data.cctvDataWoRows || []).filter(row => {
+        const matchUp3 = rowMatchUp3(row, data.woIndices.up3);
+        const matchUlp = !selectedUlp || cleanUlp(row[data.woIndices.ulp]) === targetUlpClean;
+        return matchUp3 && matchUlp;
+      }),
+      cctvDataPoRows: (data.cctvDataPoRows || []).filter(row => {
+        const matchUp3 = rowMatchUp3(row, data.poIndices.up3);
+        const matchUlp = !selectedUlp || cleanUlp(row[data.poIndices.ulp]) === targetUlpClean;
+        return matchUp3 && matchUlp;
+      }),
+      cctvSummary,
       summary: {
         ...data.summary,
         totalWo: data.summary.totalWo,
@@ -604,9 +682,13 @@ export default function App() {
     if (!data) return;
 
     const headers = type === 'WO' ? data.woHeaders : data.poHeaders;
-    const rawRows = type === 'WO' 
-      ? (isUlp ? data.distinctWoRows : data.rawWoRows) 
-      : (isUlp ? data.distinctPoRows : data.rawPoRows);
+    const rawRows = activeTab === 'CCTV'
+      ? (type === 'WO' 
+          ? (isUlp ? (filteredData?.cctvDistinctWoRows || []) : (filteredData?.cctvDataWoRows || [])) 
+          : (isUlp ? (filteredData?.cctvDistinctPoRows || []) : (filteredData?.cctvDataPoRows || [])))
+      : (type === 'WO' 
+          ? (isUlp ? data.distinctWoRows : data.rawWoRows) 
+          : (isUlp ? data.distinctPoRows : data.rawPoRows));
     const indices = type === 'WO' ? data.woIndices : data.poIndices;
 
     const cleanName = (name: any) => {
@@ -892,13 +974,13 @@ export default function App() {
                 {/* Left Column - WO UP3 & ULP Cards */}
                 <div className="lg:col-span-3 flex flex-col">
                   <WOUP3Card 
-                    totalWo={filteredData?.summary.distinctTotalWo || 0} 
-                    totalWoCctv={filteredData?.summary.distinctTotalWoCctv || 0} 
+                    totalWo={filteredData?.cctvSummary?.distinctTotalWo || 0} 
+                    totalWoCctv={filteredData?.cctvSummary?.distinctTotalWoCctv || 0} 
                     onDetailClick={(isCctv) => handleDetailClick('WO', selectedUlp ? selectedUlp : (selectedUp3 ? selectedUp3 : "ALL"), true, isCctv)}
                     title={isUpSumbar ? "TOTAL WO UP4" : "TOTAL WO UP3"}
                   />
                   <ULPStatsCard 
-                    ulpData={isUpSumbar ? up3PerformanceList : (filteredData?.ulpPerformance || [])} 
+                    ulpData={isUpSumbar ? up3PerformanceList : (filteredData?.cctvUlpPerformance || [])} 
                     allUlps={isUpSumbar ? ["UP3 PADANG", "UP3 SOLOK", "UP3 BUKITTINGGI", "UP3 PAYAKUMBUH"] : filterList}
                     onDetailClick={(ulp, isCctv) => handleDetailClick('WO', ulp, true, isCctv)}
                     title={isUpSumbar ? "TOTAL WO PER UP3" : "TOTAL WO PER ULP"}
@@ -908,11 +990,11 @@ export default function App() {
                 {/* Center Column - Performance Tables */}
                 <div className="lg:col-span-6 flex flex-col gap-6">
                   <PerformanceTable 
-                    data={filteredData?.officerPerformance || []} 
+                    data={filteredData?.cctvOfficerPerformance || []} 
                     onDetailClick={(type, name, isCctv) => handleDetailClick(type, name, false, isCctv)}
                   />
                   <ULPPerformanceTable 
-                    data={filteredData?.ulpPerformance || []} 
+                    data={filteredData?.cctvUlpPerformance || []} 
                     onDetailClick={(type, ulp, isCctv) => handleDetailClick(type, ulp, true, isCctv)}
                   />
                 </div>
@@ -920,13 +1002,13 @@ export default function App() {
                 {/* Right Column - PO UP3 & ULP Cards */}
                 <div className="lg:col-span-3 flex flex-col">
                   <POUP3Card 
-                    totalPo={filteredData?.summary.distinctTotalPo || 0} 
-                    totalPoCctv={filteredData?.summary.distinctTotalPoCctv || 0} 
+                    totalPo={filteredData?.cctvSummary?.distinctTotalPo || 0} 
+                    totalPoCctv={filteredData?.cctvSummary?.distinctTotalPoCctv || 0} 
                     onDetailClick={(isCctv) => handleDetailClick('PO', selectedUlp ? selectedUlp : (selectedUp3 ? selectedUp3 : "ALL"), true, isCctv)}
                     title={isUpSumbar ? "TOTAL PO UP4" : "TOTAL PO UP3"}
                   />
                   <ULPPOStatsCard 
-                    ulpData={isUpSumbar ? up3PerformanceList : (filteredData?.ulpPerformance || [])} 
+                    ulpData={isUpSumbar ? up3PerformanceList : (filteredData?.cctvUlpPerformance || [])} 
                     allUlps={isUpSumbar ? ["UP3 PADANG", "UP3 SOLOK", "UP3 BUKITTINGGI", "UP3 PAYAKUMBUH"] : filterList}
                     onDetailClick={(ulp, isCctv) => handleDetailClick('PO', ulp, true, isCctv)}
                     title={isUpSumbar ? "TOTAL PO PER UP3" : "TOTAL PO PER ULP"}

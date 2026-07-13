@@ -14,6 +14,7 @@ export class GoogleSheetsService {
   private static ulpCache: any[][] | null = null;
   private static poskoCache: any[][] | null = null;
   private static cctvCache: any[][] | null = null;
+  private static reguCctvCache: any[][] | null = null;
   private static lastCacheFetch: number = 0;
 
   /**
@@ -42,7 +43,7 @@ export class GoogleSheetsService {
     try {
       // Fetch and parse sheets from the official Spreadsheet ID by default
       const now = Date.now();
-      if (forceRefresh || !this.woCache || !this.poCache || !this.anomaliCache || !this.vccDataCache || !this.up3Cache || !this.ulpCache || !this.poskoCache || !this.cctvCache || (now - this.lastCacheFetch > this.CACHE_DURATION_MS)) {
+      if (forceRefresh || !this.woCache || !this.poCache || !this.anomaliCache || !this.vccDataCache || !this.up3Cache || !this.ulpCache || !this.poskoCache || !this.cctvCache || !this.reguCctvCache || (now - this.lastCacheFetch > this.CACHE_DURATION_MS)) {
         let spreadsheetId = localStorage.getItem('google_spreadsheet_id');
         if (spreadsheetId === "1lMwrFdf-VKmmWWZ_UU_XGkvhUWvH-t16ZL4lSjDbPRU") {
           localStorage.removeItem('google_spreadsheet_id');
@@ -52,7 +53,7 @@ export class GoogleSheetsService {
           spreadsheetId = this.SPREADSHEET_ID;
         }
         console.log("Fetching live sheets from Spreadsheet ID: " + spreadsheetId + " (forceRefresh=" + forceRefresh + ")");
-        const [rawWo, rawPo, rawAnomali, rawVcc, rawUp3, rawUlp, rawPosko, rawCctv] = await Promise.all([
+        const [rawWo, rawPo, rawAnomali, rawVcc, rawUp3, rawUlp, rawPosko, rawCctv, rawReguCctv] = await Promise.all([
           this.fetchSheetDataRaw("WO"),
           this.fetchSheetDataRaw("PO"),
           this.fetchSheetDataRaw("ANOMALI").catch(() => [] as any[][]),
@@ -60,7 +61,8 @@ export class GoogleSheetsService {
           this.fetchSheetDataRaw("UP3").catch(() => [] as any[][]),
           this.fetchSheetDataRaw("ULP").catch(() => [] as any[][]),
           this.fetchSheetDataRaw("POSKO").catch(() => [] as any[][]),
-          this.fetchSheetDataRaw("CCTV").catch(() => [] as any[][])
+          this.fetchSheetDataRaw("CCTV").catch(() => [] as any[][]),
+          this.fetchSheetDataRaw("REGU-CCTV").catch(() => [] as any[][])
         ]);
 
         if (rawWo && rawWo.length > 1) {
@@ -137,6 +139,7 @@ export class GoogleSheetsService {
           this.ulpCache = rawUlp && rawUlp.length > 1 ? rawUlp : [];
           this.poskoCache = rawPosko && rawPosko.length > 1 ? rawPosko : [];
           this.cctvCache = rawCctv && rawCctv.length > 1 ? rawCctv : [["Timestamp", "PO", "POSKO", "USER REGU", "TANGGAL WO", "PETUGAS", "STATUS"]];
+          this.reguCctvCache = rawReguCctv && rawReguCctv.length > 1 ? rawReguCctv : [];
           this.lastCacheFetch = now;
         }
       }
@@ -153,7 +156,8 @@ export class GoogleSheetsService {
           this.up3Cache || [],
           this.ulpCache || [],
           this.poskoCache || [],
-          this.cctvCache || []
+          this.cctvCache || [],
+          this.reguCctvCache || []
         );
       }
     } catch (err: any) {
@@ -318,7 +322,8 @@ export class GoogleSheetsService {
     up3Rows?: any[][],
     ulpRows?: any[][],
     poskoRows?: any[][],
-    cctvRows?: any[][]
+    cctvRows?: any[][],
+    reguCctvRows?: any[][]
   ): DashboardData {
     const standardUlps = ["BUKITTINGGI", "PADANG PANJANG", "LUBUK SIKAPING", "LUBUK BASUNG", "SIMPANG EMPAT", "BASO", "KOTO TUO"];
     const woHeaders = woRows[0] || [];
@@ -798,6 +803,207 @@ export class GoogleSheetsService {
 
       return {
         no: cctvCounter++,
+        namaPetugas: name,
+        ulp: o.ulp,
+        jumlahWoTotal: o.woTotal,
+        totalWoPakaiCctv: o.woCctv,
+        persenWo,
+        jumlahPoTotal: o.poTotal,
+        totalPoPakaiCctv: o.poCctv,
+        persenPo,
+        persenPenggunaanCctv
+      };
+    });
+
+    // Extract REGU-CCTV names
+    let reguCctvList: string[] = [];
+    if (reguCctvRows && reguCctvRows.length > 1) {
+      const headers = reguCctvRows[0] || [];
+      const nameIdx = headers.findIndex(h => String(h || "").trim().toLowerCase() === "name");
+      const idx = nameIdx !== -1 ? nameIdx : 1;
+      reguCctvList = reguCctvRows.slice(1)
+        .map(r => String(r[idx] || "").trim().toUpperCase())
+        .filter(Boolean);
+    } else {
+      // try to read from localStorage
+      const stored = localStorage.getItem('local_regu_cctv');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 1) {
+            const headers = parsed[0] || [];
+            const nameIdx = headers.findIndex(h => String(h || "").trim().toLowerCase() === "name");
+            const idx = nameIdx !== -1 ? nameIdx : 1;
+            reguCctvList = parsed.slice(1)
+              .map(r => String(r[idx] || "").trim().toUpperCase())
+              .filter(Boolean);
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+    }
+    if (reguCctvList.length === 0) {
+      reguCctvList = ["LUBUK SIKAPING", "BUKITTINGGI", "BASO", "LUBUK BASUNG", "KOTOTUO", "KOTO TUO"];
+    }
+
+    // Filter WO and PO raw rows for CCTV specifically
+    const cctvDataWoRows = dataWoRows.filter(row => {
+      const reguVal = String(row[woIndices.regu] || "").trim().toUpperCase();
+      return reguCctvList.includes(reguVal);
+    });
+
+    const cctvDataPoRows = dataPoRows.filter(row => {
+      const reguVal = String(row[poIndices.regu] || "").trim().toUpperCase();
+      return reguCctvList.includes(reguVal);
+    });
+
+    // Deduplicate CCTV WO rows by No Laporan
+    const cctvWoGroupMap = new Map<string, any[]>();
+    cctvDataWoRows.forEach((row, idx) => {
+      const rawNoLapo = String(row[woIndices.noLaporan] || "").trim();
+      const key = rawNoLapo ? rawNoLapo.toUpperCase() : `EMPTY_WO_${idx}`;
+      if (!cctvWoGroupMap.has(key)) {
+        cctvWoGroupMap.set(key, []);
+      }
+      cctvWoGroupMap.get(key)!.push(row);
+    });
+
+    const cctvDistinctWoRows: any[][] = [];
+    cctvWoGroupMap.forEach((rows) => {
+      const hasCctv = rows.some(r => checkCctv(r[woIndices.cctv]));
+      const representative = [...rows[0]];
+      representative[woIndices.cctv] = hasCctv ? "CCTV YA" : "TIDAK";
+      cctvDistinctWoRows.push(representative);
+    });
+
+    // Deduplicate CCTV PO rows by No Tugas
+    const cctvPoGroupMap = new Map<string, any[]>();
+    cctvDataPoRows.forEach((row, idx) => {
+      const rawNoTugas = String(row[poIndices.noTugas] || "").trim();
+      const key = rawNoTugas ? rawNoTugas.toUpperCase() : `EMPTY_PO_${idx}`;
+      if (!cctvPoGroupMap.has(key)) {
+        cctvPoGroupMap.set(key, []);
+      }
+      cctvPoGroupMap.get(key)!.push(row);
+    });
+
+    const cctvDistinctPoRows: any[][] = [];
+    cctvPoGroupMap.forEach((rows) => {
+      const hasCctv = rows.some(r => checkCctv(r[poIndices.cctv]));
+      const representative = [...rows[0]];
+      representative[poIndices.cctv] = hasCctv ? "YA" : "TIDAK";
+      cctvDistinctPoRows.push(representative);
+    });
+
+    // Grouping & calculations for CCTV OFFICER PERFORMANCE
+    const cctvOfficerMap: { [name: string]: { ulp: string; woTotal: number; woCctv: number; poTotal: number; poCctv: number } } = {};
+
+    cctvDataWoRows.forEach(row => {
+      const name = String(row[woIndices.name] || "").trim();
+      if (!name) return;
+      const cleanUlp = this.cleanUlpName(row[woIndices.ulp]);
+      const isCctv = checkCctv(row[woIndices.cctv]);
+
+      if (!cctvOfficerMap[name]) {
+        cctvOfficerMap[name] = { ulp: cleanUlp, woTotal: 0, woCctv: 0, poTotal: 0, poCctv: 0 };
+      }
+      cctvOfficerMap[name].woTotal++;
+      if (isCctv) cctvOfficerMap[name].woCctv++;
+    });
+
+    cctvDataPoRows.forEach(row => {
+      const name = String(row[poIndices.name] || "").trim();
+      if (!name) return;
+      const cleanUlp = this.cleanUlpName(row[poIndices.ulp]);
+      const isCctv = checkCctv(row[poIndices.cctv]);
+
+      if (!cctvOfficerMap[name]) {
+        cctvOfficerMap[name] = { ulp: cleanUlp, woTotal: 0, woCctv: 0, poTotal: 0, poCctv: 0 };
+      }
+      cctvOfficerMap[name].poTotal++;
+      if (isCctv) cctvOfficerMap[name].poCctv++;
+    });
+
+    const cctvOfficerPerformance: OfficerPerformance[] = Object.keys(cctvOfficerMap).map(name => {
+      const o = cctvOfficerMap[name];
+      const persenWo = o.woTotal > 0 ? ((o.woCctv / o.woTotal) * 100).toFixed(1) + "%" : "100%";
+      const persenPo = o.poTotal > 0 ? ((o.poCctv / o.poTotal) * 100).toFixed(1) + "%" : "100%";
+      return {
+        name,
+        ulp: o.ulp,
+        jumlahWoTotal: o.woTotal,
+        totalWoPakaiCctv: o.woCctv,
+        persenWo,
+        jumlahPoTotal: o.poTotal,
+        totalPoPakaiCctv: o.poCctv,
+        persenPo
+      };
+    });
+
+    // Grouping & calculations for CCTV ULP PERFORMANCE
+    const cctvUlpMap: { [ulpName: string]: { woTotal: number; woCctv: number; poTotal: number; poCctv: number } } = {};
+    standardUlps.forEach(ulp => {
+      cctvUlpMap[ulp] = { woTotal: 0, woCctv: 0, poTotal: 0, poCctv: 0 };
+    });
+
+    cctvDistinctWoRows.forEach(row => {
+      const cleanUlp = this.cleanUlpName(row[woIndices.ulp]);
+      if (cleanUlp) {
+        if (!cctvUlpMap[cleanUlp]) {
+          cctvUlpMap[cleanUlp] = { woTotal: 0, woCctv: 0, poTotal: 0, poCctv: 0 };
+        }
+        cctvUlpMap[cleanUlp].woTotal++;
+        if (checkCctv(row[woIndices.cctv])) {
+          cctvUlpMap[cleanUlp].woCctv++;
+        }
+      }
+    });
+
+    cctvDistinctPoRows.forEach(row => {
+      const cleanUlp = this.cleanUlpName(row[poIndices.ulp]);
+      if (cleanUlp) {
+        if (!cctvUlpMap[cleanUlp]) {
+          cctvUlpMap[cleanUlp] = { woTotal: 0, woCctv: 0, poTotal: 0, poCctv: 0 };
+        }
+        cctvUlpMap[cleanUlp].poTotal++;
+        if (checkCctv(row[poIndices.cctv])) {
+          cctvUlpMap[cleanUlp].poCctv++;
+        }
+      }
+    });
+
+    const cctvUlpPerformance: ULPPerformance[] = Object.keys(cctvUlpMap).map(ulp => {
+      const u = cctvUlpMap[ulp];
+      const persenWo = u.woTotal > 0 ? ((u.woCctv / u.woTotal) * 100).toFixed(1) + "%" : "100%";
+      const persenPo = u.poTotal > 0 ? ((u.poCctv / u.poTotal) * 100).toFixed(1) + "%" : "100%";
+      const totalCctv = u.woCctv + u.poCctv;
+      const totalJobs = u.woTotal + u.poTotal;
+      const persenPenggunaanCctv = totalJobs > 0 ? ((totalCctv / totalJobs) * 100).toFixed(1) + "%" : "100%";
+
+      return {
+        ulp,
+        jumlahWoTotal: u.woTotal,
+        totalWoPakaiCctv: u.woCctv,
+        persenWo,
+        jumlahPoTotal: u.poTotal,
+        totalPoPakaiCctv: u.poCctv,
+        persenPo,
+        persenPenggunaanCctv
+      };
+    });
+
+    let cctvUsageCounter = 1;
+    const cctvCctvUsage: CCTVUsage[] = Object.keys(cctvOfficerMap).map(name => {
+      const o = cctvOfficerMap[name];
+      const persenWo = o.woTotal > 0 ? ((o.woCctv / o.woTotal) * 100).toFixed(1) + "%" : "100%";
+      const persenPo = o.poTotal > 0 ? ((o.poCctv / o.poTotal) * 100).toFixed(1) + "%" : "100%";
+      const totalCctv = o.woCctv + o.poCctv;
+      const totalJobs = o.woTotal + o.poTotal;
+      const persenPenggunaanCctv = totalJobs > 0 ? ((totalCctv / totalJobs) * 100).toFixed(1) + "%" : "100%";
+
+      return {
+        no: cctvUsageCounter++,
         namaPetugas: name,
         ulp: o.ulp,
         jumlahWoTotal: o.woTotal,
@@ -1395,6 +1601,14 @@ export class GoogleSheetsService {
       officerPerformance,
       ulpPerformance,
       cctvUsage,
+      cctvOfficerPerformance,
+      cctvUlpPerformance,
+      cctvCctvUsage,
+      cctvDistinctWoRows,
+      cctvDistinctPoRows,
+      cctvDataWoRows,
+      cctvDataPoRows,
+      reguCctvList,
       summary,
       allUlps: finalAllUlps,
       allPoskos: finalAllUlps.map(u => `POSKO ULP ${u}`),
