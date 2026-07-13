@@ -15,6 +15,7 @@ export class GoogleSheetsService {
   private static poskoCache: any[][] | null = null;
   private static cctvCache: any[][] | null = null;
   private static reguCctvCache: any[][] | null = null;
+  private static petugasCache: any[][] | null = null;
   private static lastCacheFetch: number = 0;
 
   /**
@@ -43,7 +44,7 @@ export class GoogleSheetsService {
     try {
       // Fetch and parse sheets from the official Spreadsheet ID by default
       const now = Date.now();
-      if (forceRefresh || !this.woCache || !this.poCache || !this.anomaliCache || !this.vccDataCache || !this.up3Cache || !this.ulpCache || !this.poskoCache || !this.cctvCache || !this.reguCctvCache || (now - this.lastCacheFetch > this.CACHE_DURATION_MS)) {
+      if (forceRefresh || !this.woCache || !this.poCache || !this.anomaliCache || !this.vccDataCache || !this.up3Cache || !this.ulpCache || !this.poskoCache || !this.cctvCache || !this.reguCctvCache || !this.petugasCache || (now - this.lastCacheFetch > this.CACHE_DURATION_MS)) {
         let spreadsheetId = localStorage.getItem('google_spreadsheet_id');
         if (spreadsheetId === "1lMwrFdf-VKmmWWZ_UU_XGkvhUWvH-t16ZL4lSjDbPRU") {
           localStorage.removeItem('google_spreadsheet_id');
@@ -53,7 +54,7 @@ export class GoogleSheetsService {
           spreadsheetId = this.SPREADSHEET_ID;
         }
         console.log("Fetching live sheets from Spreadsheet ID: " + spreadsheetId + " (forceRefresh=" + forceRefresh + ")");
-        const [rawWo, rawPo, rawAnomali, rawVcc, rawUp3, rawUlp, rawPosko, rawCctv, rawReguCctv] = await Promise.all([
+        const [rawWo, rawPo, rawAnomali, rawVcc, rawUp3, rawUlp, rawPosko, rawCctv, rawReguCctv, rawPetugas] = await Promise.all([
           this.fetchSheetDataRaw("WO"),
           this.fetchSheetDataRaw("PO"),
           this.fetchSheetDataRaw("ANOMALI").catch(() => [] as any[][]),
@@ -62,7 +63,8 @@ export class GoogleSheetsService {
           this.fetchSheetDataRaw("ULP").catch(() => [] as any[][]),
           this.fetchSheetDataRaw("POSKO").catch(() => [] as any[][]),
           this.fetchSheetDataRaw("CCTV").catch(() => [] as any[][]),
-          this.fetchSheetDataRaw("REGU-CCTV").catch(() => [] as any[][])
+          this.fetchSheetDataRaw("REGU-CCTV").catch(() => [] as any[][]),
+          this.fetchSheetDataRaw("PETUGAS").catch(() => [] as any[][])
         ]);
 
         if (rawWo && rawWo.length > 1) {
@@ -140,6 +142,29 @@ export class GoogleSheetsService {
           this.poskoCache = rawPosko && rawPosko.length > 1 ? rawPosko : [];
           this.cctvCache = rawCctv && rawCctv.length > 1 ? rawCctv : [["Timestamp", "PO", "POSKO", "USER REGU", "TANGGAL WO", "PETUGAS", "STATUS"]];
           this.reguCctvCache = rawReguCctv && rawReguCctv.length > 1 ? rawReguCctv : [];
+          
+          let finalPetugas = rawPetugas;
+          if (!finalPetugas || finalPetugas.length <= 1) {
+            const stored = localStorage.getItem('local_petugas');
+            if (stored) {
+              finalPetugas = JSON.parse(stored);
+            } else {
+              finalPetugas = [
+                ["id", "name", "ulpId"],
+                ["k1", "13226_AZWARDI", "BKT6"],
+                ["k2", "13226_BOBI HERMANTO", "BKT6"],
+                ["k3", "13226_BOBY ADIQ MUTYA", "BKT6"],
+                ["k4", "13226_MAKMUR RIDWAN", "BKT6"],
+                ["k5", "13226_EDY JUNAIDI", "BKT6"],
+                ["k6", "13226_REDI SATRIA", "BKT1"],
+                ["k7", "13226_RIKO PUTRA", "BKT1"],
+                ["k8", "13226_SYAHRIAL", "BKT2"],
+                ["k9", "13226_ZULHELMID", "BKT2"]
+              ];
+            }
+          }
+          this.petugasCache = finalPetugas;
+          
           this.lastCacheFetch = now;
         }
       }
@@ -157,7 +182,8 @@ export class GoogleSheetsService {
           this.ulpCache || [],
           this.poskoCache || [],
           this.cctvCache || [],
-          this.reguCctvCache || []
+          this.reguCctvCache || [],
+          this.petugasCache || []
         );
       }
     } catch (err: any) {
@@ -323,8 +349,11 @@ export class GoogleSheetsService {
     ulpRows?: any[][],
     poskoRows?: any[][],
     cctvRows?: any[][],
-    reguCctvRows?: any[][]
+    reguCctvRows?: any[][],
+    petugasRows?: any[][]
   ): DashboardData {
+    // ... use petugasRows instead of GoogleSheetsService.petugasCache where applicable
+    // Note: I also need to update the call inside compileDashboardDataFromRaw to use the passed argument instead of the static class property.
     const standardUlps = ["BUKITTINGGI", "PADANG PANJANG", "LUBUK SIKAPING", "LUBUK BASUNG", "SIMPANG EMPAT", "BASO", "KOTO TUO"];
     const woHeaders = woRows[0] || [];
     const findIndex = (headers: string[], targets: string[], fallback: number) => {
@@ -1348,6 +1377,23 @@ export class GoogleSheetsService {
       }
     });
 
+    // Pre-populate officerRatingsMap with 0 ratings for all officers in rawFilteredWoRows
+    officerToUlpRatingMap.forEach((ulp, name) => {
+      officerRatingsMap[name] = { totalPM: 0, r5: 0, r34: 0, r12: 0, none: 0 };
+    });
+
+    // Also include all officers from petugasCache
+    if (petugasRows && petugasRows.length > 1) {
+      petugasRows.slice(1).forEach(row => {
+        const name = String(row[1] || "").trim(); // Assuming name is at index 1
+        if (name && !officerRatingsMap[name]) {
+          officerRatingsMap[name] = { totalPM: 0, r5: 0, r34: 0, r12: 0, none: 0 };
+          if (!officerToUlpRatingMap.has(name)) officerToUlpRatingMap.set(name, String(row[2] || "BUKITTINGGI"));
+          if (!officerToReguRatingMap.has(name)) officerToReguRatingMap.set(name, "REGU ALFA"); // Default
+        }
+      });
+    }
+
     plnMobileRows.forEach(row => {
       const name = String(row[woIndices.name] || "").trim();
       const rate = String(row[woIndices.rating] || "").trim();
@@ -1666,7 +1712,7 @@ export class GoogleSheetsService {
       throw new Error("Local custom url proxy parsing failed or returned empty sheets.");
     }
 
-    return this.compileDashboardDataFromRaw(woRows, poRows, [["Timestamp", "NOMOR WO YANTEK DENGAN CCTV", "POSKO ULP", "USER REGU", "TANGGAL WO", "Anomali", "KETERANGAN ANOMALI"]], start, end, ulp);
+    return this.compileDashboardDataFromRaw(woRows, poRows, [["Timestamp", "NOMOR WO YANTEK DENGAN CCTV", "POSKO ULP", "USER REGU", "TANGGAL WO", "Anomali", "KETERANGAN ANOMALI"]], start, end, ulp, undefined, undefined, undefined, undefined, undefined, undefined, []);
   }
 
   /**
@@ -1892,7 +1938,9 @@ export class GoogleSheetsService {
       mockUp3Rows,
       mockUlpRows,
       mockPoskoRows,
-      mockCctvRows
+      mockCctvRows,
+      [],
+      []
     );
   }
 }
