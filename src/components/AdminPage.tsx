@@ -792,32 +792,18 @@ export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData 
       setIsSuperAdmin(true);
     }
 
-    // Load GAS configurations from localStorage
-    const savedGasUrl = localStorage.getItem('gas_web_app_url');
-    if (savedGasUrl) {
-      setGasUrl(savedGasUrl);
-    }
-    const savedFolderId = localStorage.getItem('gdrive_folder_id');
-    if (savedFolderId) {
-      setFolderId(savedFolderId);
-    }
-    const savedSpreadsheetId = localStorage.getItem('google_spreadsheet_id');
-    if (savedSpreadsheetId) {
-      setSpreadsheetId(savedSpreadsheetId);
-    }
+    // Load GAS configurations from localStorage or environment variables
+    const metaEnv = import.meta.env;
+    setGasUrl(localStorage.getItem('gas_web_app_url') || metaEnv.VITE_GAS_WEB_APP_URL || '');
+    setFolderId(localStorage.getItem('gdrive_folder_id') || metaEnv.VITE_GDRIVE_FOLDER_ID || '1NvIw5QLalD-eK1u7Hv6vhW5PS0JWjwK2');
+    setSpreadsheetId(localStorage.getItem('google_spreadsheet_id') || metaEnv.VITE_GOOGLE_SPREADSHEET_ID || '1UUxU8soJuTeB_kMk0XFqHY8UaPcISnWto9MOp960-mo');
     const savedMethod = localStorage.getItem('upload_method') || 'gdrive';
     setUploadMethod(savedMethod as 'server' | 'gdrive');
 
     // Load Supabase Client-side Settings
-    const metaEnv = (import.meta as any).env || {};
-    const savedSupabaseUrl = localStorage.getItem('client_supabase_url') || metaEnv.VITE_SUPABASE_URL || 'https://bicyhoavntfuwaesqwwf.supabase.co';
-    setSupabaseUrl(savedSupabaseUrl);
-
-    const savedSupabaseKey = localStorage.getItem('client_supabase_key') || metaEnv.VITE_SUPABASE_KEY || '';
-    setSupabaseKey(savedSupabaseKey);
-
-    const savedSupabaseBucket = localStorage.getItem('client_supabase_bucket') || metaEnv.VITE_SUPABASE_BUCKET || 'EVIDEN';
-    setSupabaseBucket(savedSupabaseBucket);
+    setSupabaseUrl(localStorage.getItem('client_supabase_url') || metaEnv.VITE_SUPABASE_URL || 'https://bicyhoavntfuwaesqwwf.supabase.co');
+    setSupabaseKey(localStorage.getItem('client_supabase_key') || metaEnv.VITE_SUPABASE_KEY || '');
+    setSupabaseBucket(localStorage.getItem('client_supabase_bucket') || metaEnv.VITE_SUPABASE_BUCKET || 'EVIDEN');
 
     // Load Eviden mappings
     const savedEviden = localStorage.getItem('anomali_evidens');
