@@ -26,6 +26,7 @@ interface SubHeaderProps {
   selectedUp3?: string;
   onUp3Change?: (up3: string) => void;
   up3List?: string[];
+  onRefresh?: () => void;
 }
 
 export const SubHeader: React.FC<SubHeaderProps> = ({ 
@@ -43,7 +44,8 @@ export const SubHeader: React.FC<SubHeaderProps> = ({
   onMonthChange,
   selectedUp3 = "UP3 BUKITTINGGI",
   onUp3Change,
-  up3List = []
+  up3List = [],
+  onRefresh
 }) => {
   const defaultUp3List = ["UP3 BUKITTINGGI", "UP3 PADANG", "UP3 SOLOK", "UP3 PAYAKUMBUH", "UP4 SUMBAR"];
   const finalUp3List = (up3List && up3List.length > 0) ? up3List : defaultUp3List;
@@ -240,7 +242,10 @@ export const SubHeader: React.FC<SubHeaderProps> = ({
           <RotateCcw size={18} />
         </button>
 
-        <button className="bg-brand-secondary text-white px-6 py-2.5 rounded-xl font-black text-xs tracking-widest flex items-center gap-2 shadow-lg shadow-brand-secondary/20 hover:scale-[1.02] active:scale-[0.98] transition-all">
+        <button 
+          onClick={onRefresh}
+          className="bg-brand-secondary text-white px-6 py-2.5 rounded-xl font-black text-xs tracking-widest flex items-center gap-2 shadow-lg shadow-brand-secondary/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+        >
           <RefreshCw size={14} />
           SINKRON PAKSA
         </button>

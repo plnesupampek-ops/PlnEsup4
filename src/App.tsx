@@ -801,7 +801,7 @@ export default function App() {
     };
 
     loadData(!data);
-    const interval = setInterval(() => loadData(false), 20000); // Poll every 20 seconds for high responsiveness
+    const interval = setInterval(() => loadData(false), 300000); // Poll every 5 minutes (300000ms) for spreadsheet reading
     return () => clearInterval(interval);
   }, [startDate, endDate, selectedUlp]);
 
@@ -874,6 +874,7 @@ export default function App() {
         activeTab={activeTab}
         selectedMonth={selectedMonth}
         onMonthChange={handleMonthChange}
+        onRefresh={handleManualRefresh}
       />
       
       <main className="flex-1 p-6 flex flex-col gap-6 overflow-x-hidden">
