@@ -1097,7 +1097,7 @@ export default function App() {
 
       <footer className="bg-white border-t border-gray-100 p-4 text-center">
         <p className="text-[10px] font-black text-gray-300 tracking-[0.5em] uppercase">
-          © 2026 PLN ELECTRICITY SERVICES • REGIONAL SUMATERA BARAT • UL BUKITTINGGI
+          © 2026 PLN ELECTRICITY SERVICES • REGIONAL SUMATERA BARAT • UP4 SUMBAR
         </p>
       </footer>
     </div>
