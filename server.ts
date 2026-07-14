@@ -24,12 +24,12 @@ async function startServer() {
 
   app.get("/api/config", (req, res) => {
     res.json({
-      GAS_WEB_APP_URL: process.env.VITE_GAS_WEB_APP_URL,
-      GDRIVE_FOLDER_ID: process.env.VITE_GDRIVE_FOLDER_ID,
+      GAS_WEB_APP_URL: process.env.VITE_GAS_WEB_APP_URL || process.env.VITE_GAS_WEB_APP || process.env.VITE_APPS_SCRIPT_,
+      GDRIVE_FOLDER_ID: process.env.VITE_GDRIVE_FOLDER_ID || process.env.VITE_GDRIVE_FOLD,
       GOOGLE_SPREADSHEET_ID: process.env.VITE_GOOGLE_SPREADSHEET_ID,
-      SUPABASE_URL: process.env.VITE_SUPABASE_URL,
-      SUPABASE_KEY: process.env.VITE_SUPABASE_KEY,
-      SUPABASE_BUCKET: process.env.VITE_SUPABASE_BUCKET
+      SUPABASE_URL: process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL,
+      SUPABASE_KEY: process.env.VITE_SUPABASE_KEY || process.env.SUPABASE_KEY || process.env.VITE_SUPABASE_KE,
+      SUPABASE_BUCKET: process.env.VITE_SUPABASE_BUCKET || process.env.VITE_SUPABASE_BU
     });
   });
 
