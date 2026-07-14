@@ -18,6 +18,26 @@ export default {
       });
     }
 
+    // 1.5 Route: /api/config
+    if (url.pathname === "/api/config") {
+      const configData = {
+        GAS_WEB_APP_URL: "", // Will be filled from env if available in a real worker env
+        GDRIVE_FOLDER_ID: "",
+        GOOGLE_SPREADSHEET_ID: "",
+        SUPABASE_URL: "",
+        SUPABASE_KEY: "",
+        SUPABASE_BUCKET: ""
+      };
+      
+      return new Response(JSON.stringify(configData), {
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+          "Access-Control-Allow-Origin": "*",
+        },
+      });
+    }
+
     // 2. Route: /api/sheets with robust retry logic
     if (url.pathname === "/api/sheets") {
       const sheetName = url.searchParams.get("sheetName");

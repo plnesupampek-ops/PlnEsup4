@@ -102,7 +102,6 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
       "ALAHANPANJANG": "UP3 SOLOK",
       "PAYAKUMBUH": "UP3 PAYAKUMBUH",
       "LIMAPULUHKOTA": "UP3 PAYAKUMBUH",
-      "SULIKI": "UP3 PAYAKUMBUH",
     };
     return standardMappings[cleanUlp] || "UP3 BUKITTINGGI";
   };
@@ -332,7 +331,7 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
       const avgRptItem = parseFloat((item.totalRpt / item.totalWo).toFixed(1));
       const avgRctItem = parseFloat((item.totalRct / item.totalWo).toFixed(1));
       const compliance = Math.min(100, parseFloat((((item.totalWo - item.rptOver30) / item.totalWo) * 100).toFixed(1)));
-      const rating = item.ratingCount > 0 ? parseFloat((item.totalRating / item.ratingCount).toFixed(2)) : 5.0;
+      const rating = item.ratingCount > 0 ? parseFloat((item.totalRating / item.ratingCount).toFixed(2)) : 0;
       
       // Determine optimization status & workload
       let status: 'OPTIMAL' | 'OVERLOADED' | 'UNDER-UTILIZED' = 'OPTIMAL';
@@ -472,12 +471,12 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
       }
     });
 
-    const activeReguCount = Object.keys(reguMap).length || 5; // Default fallback to 5 regu if empty
-    const avgRatingAll = ratingCountAll > 0 ? parseFloat((totalRatingSum / ratingCountAll).toFixed(2)) : 5.0;
+    const activeReguCount = Object.keys(reguMap).length; // Removed default fallback
+    const avgRatingAll = ratingCountAll > 0 ? parseFloat((totalRatingSum / ratingCountAll).toFixed(2)) : 0;
 
     const topRegu = Object.keys(reguMap).map(key => {
       const item = reguMap[key];
-      const rating = item.ratingCount > 0 ? parseFloat((item.totalRating / item.ratingCount).toFixed(2)) : 5.0;
+      const rating = item.ratingCount > 0 ? parseFloat((item.totalRating / item.ratingCount).toFixed(2)) : 0;
       return {
         name: item.name,
         leader: item.leader,
@@ -523,30 +522,12 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
     }
 
     if (rawRows.length <= 1) {
-      // High-fidelity fallback / mock generator matching real formulas
-      const defaults = {
-        avgPerforma: 94.07,
-        avgKinerjaYo: 98.92,
-        avgHariKerja: 100, // Capped at 100
-        totalWoPo: 100     // Capped at 100
+      return {
+        avgPerforma: 0,
+        avgKinerjaYo: 0,
+        avgHariKerja: 0,
+        totalWoPo: 0
       };
-
-      if (selectedUlp !== 'ALL') {
-        const mockMap: { [key: string]: typeof defaults } = {
-          "LUBUK BASUNG": { avgPerforma: 90.31, avgKinerjaYo: 93.01, avgHariKerja: 100, totalWoPo: 100 },
-          "BASO": { avgPerforma: 99.11, avgKinerjaYo: 100, avgHariKerja: 100, totalWoPo: 100 },
-          "SIMPANG EMPAT": { avgPerforma: 90.56, avgKinerjaYo: 93.18, avgHariKerja: 100, totalWoPo: 100 },
-          "LUBUK SIKAPING": { avgPerforma: 95.38, avgKinerjaYo: 100, avgHariKerja: 100, totalWoPo: 100 },
-          "PADANG PANJANG": { avgPerforma: 98.11, avgKinerjaYo: 100, avgHariKerja: 100, totalWoPo: 100 }
-        };
-        const uKey = selectedUlp.toUpperCase();
-        for (const k of Object.keys(mockMap)) {
-          if (uKey.includes(k) || k.includes(uKey)) {
-            return mockMap[k];
-          }
-        }
-      }
-      return defaults;
     }
 
     const headers = rawRows[0] || [];
@@ -746,43 +727,7 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
     }
 
     if (rawRows.length <= 1) {
-      if (isUpSumbarMode) {
-        // High-fidelity fallback metrics per UP3
-        const mockUp3List = [
-          { name: "UP3 BUKITTINGGI", totalNilaiYo: 94.69, nilaiHariKerja: 98.24, nilaiProduktivitas: 110.15, nilaiPerformaWoPo: 242.05 },
-          { name: "UP3 PADANG", totalNilaiYo: 92.51, nilaiHariKerja: 94.12, nilaiProduktivitas: 108.50, nilaiPerformaWoPo: 236.40 },
-          { name: "UP3 SOLOK", totalNilaiYo: 91.15, nilaiHariKerja: 93.60, nilaiProduktivitas: 105.20, nilaiPerformaWoPo: 228.15 },
-          { name: "UP3 PAYAKUMBUH", totalNilaiYo: 94.23, nilaiHariKerja: 96.80, nilaiProduktivitas: 109.40, nilaiPerformaWoPo: 240.20 }
-        ];
-        return mockUp3List.map(u => ({
-          name: u.name,
-          totalNilaiYo: Math.min(100, u.totalNilaiYo),
-          nilaiHariKerja: Math.min(100, u.nilaiHariKerja),
-          nilaiProduktivitas: Math.min(100, u.nilaiProduktivitas),
-          nilaiPerformaWoPo: Math.min(100, u.nilaiPerformaWoPo)
-        }));
-      }
-
-      // High-fidelity fallback metrics per ULP
-      const mockUlpList = [
-        { name: "LUBUK BASUNG", totalNilaiYo: 90.31, nilaiHariKerja: 93.01, nilaiProduktivitas: 116.74, nilaiPerformaWoPo: 234.05 },
-        { name: "BASO", totalNilaiYo: 99.11, nilaiHariKerja: 105.15, nilaiProduktivitas: 112.04, nilaiPerformaWoPo: 263.02 },
-        { name: "SIMPANG EMPAT", totalNilaiYo: 90.56, nilaiHariKerja: 93.18, nilaiProduktivitas: 110.00, nilaiPerformaWoPo: 243.44 },
-        { name: "LUBUK SIKAPING", totalNilaiYo: 95.38, nilaiHariKerja: 104.17, nilaiProduktivitas: 102.80, nilaiPerformaWoPo: 232.79 },
-        { name: "PADANG PANJANG", totalNilaiYo: 98.11, nilaiHariKerja: 108.61, nilaiProduktivitas: 105.44, nilaiPerformaWoPo: 241.18 }
-      ];
-      const mappedMocks = mockUlpList.map(u => ({
-        name: u.name,
-        totalNilaiYo: Math.min(100, u.totalNilaiYo),
-        nilaiHariKerja: Math.min(100, u.nilaiHariKerja),
-        nilaiProduktivitas: Math.min(100, u.nilaiProduktivitas),
-        nilaiPerformaWoPo: Math.min(100, u.nilaiPerformaWoPo)
-      }));
-      if (selectedUlp !== 'ALL') {
-        const uKey = selectedUlp.toUpperCase();
-        return mappedMocks.filter(u => u.name.includes(uKey) || uKey.includes(u.name));
-      }
-      return mappedMocks;
+      return [];
     }
 
     const headers = rawRows[0] || [];
@@ -1222,15 +1167,8 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
     }
 
     // Fallback if no real rows or list is empty
-    if (!hasRealRows && list.length === 0 && !isFilteredButEmpty) {
-      const fallbackList = [
-        { name: "ABADI RAHMAD", ulp: "ULP LUBUK SIKAPING", targetScore: 15, score: 8.00, percent: 53.33 },
-        { name: "ABDUL HAMID", ulp: "ULP LUBUK BASUNG", targetScore: 15, score: 7.00, percent: 46.67 },
-        { name: "AHMAD SALIM", ulp: "ULP KOTO TUO", targetScore: 15, score: 8.50, percent: 56.67 },
-        { name: "ADE ANDRI", ulp: "ULP SIMPANG EMPAT", targetScore: 15, score: 6.00, percent: 40.00 },
-        { name: "BUDI SANTOSO", ulp: "ULP BUKITTINGGI", targetScore: 15, score: 8.00, percent: 53.33 },
-      ];
-      list = fallbackList;
+    if (!hasRealRows && list.length === 0) {
+      list = [];
     }
 
     // Apply ULP Filter if specified
@@ -1275,7 +1213,6 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
       "UP3 PAYAKUMBUH": [
         { key: "PAYAKUMBUH", name: "ULP PAYAKUMBUH", up3: "PAYAKUMBUH", fallbackReal: 97.5, fallbackGreen: 29 },
         { key: "LIMA PULUH KOTA", name: "ULP LIMA PULUH KOTA", up3: "PAYAKUMBUH", fallbackReal: 93.2, fallbackGreen: 21 },
-        { key: "SULIKI", name: "ULP SULIKI", up3: "PAYAKUMBUH", fallbackReal: 92.0, fallbackGreen: 17 },
       ]
     };
 
@@ -1511,10 +1448,10 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
           }
         });
       } else {
-        greenCount = u.fallbackGreen;
+        greenCount = 0;
         yellowCount = 0;
         redCount = 0;
-        totalPetugas = u.fallbackGreen;
+        totalPetugas = 0;
       }
 
       return {
@@ -1539,7 +1476,7 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
     const activeRowsList = rowsList.filter(r => r.totalPetugas > 0);
     const averageRealRate = activeRowsList.length > 0 
       ? activeRowsList.reduce((acc, r) => acc + r.realRate, 0) / activeRowsList.length 
-      : (isFilteredButEmpty || hasRealRows ? 0 : 95.76);
+      : (isFilteredButEmpty || hasRealRows ? 0 : 0);
 
     const totalGreen = rowsList.reduce((acc, r) => acc + r.green, 0);
     const totalYellow = rowsList.reduce((acc, r) => acc + r.yellow, 0);
@@ -1701,40 +1638,7 @@ export const YantekOptimitationPage: React.FC<YantekOptimitationPageProps> = ({
       });
       return list;
     } else {
-      // Return beautiful mock data matching the category and ULP
-      const standardUlps = [
-        { key: "LUBUK BASUNG", name: "ULP LUBUK BASUNG", up3: "BUKITTINGGI", fallbackGreen: 39 },
-        { key: "SIMPANG EMPAT", name: "ULP SIMPANG EMPAT", up3: "BUKITTINGGI", fallbackGreen: 48 },
-        { key: "BASO", name: "ULP BASO", up3: "BUKITTINGGI", fallbackGreen: 15 },
-        { key: "KOTO TUO", name: "ULP KOTO TUO", up3: "BUKITTINGGI", fallbackGreen: 16 },
-        { key: "BUKITTINGGI", name: "ULP BUKITTINGGI", up3: "BUKITTINGGI", fallbackGreen: 15 },
-        { key: "LUBUK SIKAPING", name: "ULP LUBUK SIKAPING", up3: "BUKITTINGGI", fallbackGreen: 24 },
-        { key: "PADANG PANJANG", name: "ULP PADANG PANJANG", up3: "BUKITTINGGI", fallbackGreen: 19 },
-      ];
-
-      const matchingUlps = ulpKey === 'ALL' 
-        ? standardUlps 
-        : (isUpSumbarMode 
-            ? standardUlps.filter(u => u.up3 === ulpKey) 
-            : standardUlps.filter(u => u.key === ulpKey)
-          );
-      const mockList: any[] = [];
-
-      matchingUlps.forEach(ulp => {
-        const count = category === 'green' || category === 'total' ? ulp.fallbackGreen : 0;
-        for (let i = 0; i < count; i++) {
-          mockList.push({
-            employeeName: `OFFICER ${ulp.key} ${i + 1}`,
-            namaUlp: `ULP ${ulp.key}`,
-            persentaseSkor: 95.00,
-            skorHariKerja: 4.00,
-            skorPerforma: 4.00,
-            skorProduktivitas: 4.00,
-            totalSkor: 14.25,
-          });
-        }
-      });
-      return mockList;
+      return [];
     }
   }, [clickedCell, filteredVccData, isUpSumbarMode]);
 

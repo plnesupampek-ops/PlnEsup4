@@ -861,24 +861,29 @@ export default function App() {
       try {
         const configRes = await fetch(`/api/config?_t=${Date.now()}`);
         if (configRes.ok) {
-          const config = await configRes.json();
-          const metaEnv = (import.meta as any).env || {};
-          
-          const finalGasUrl = config.GAS_WEB_APP_URL || metaEnv.VITE_GAS_WEB_APP_URL || localStorage.getItem('gas_web_app_url') || '';
-          const finalFolderId = config.GDRIVE_FOLDER_ID || metaEnv.VITE_GDRIVE_FOLDER_ID || localStorage.getItem('gdrive_folder_id') || '1NvIw5QLalD-eK1u7Hv6vhW5PS0JWjwK2';
-          const finalSpreadsheetId = config.GOOGLE_SPREADSHEET_ID || metaEnv.VITE_GOOGLE_SPREADSHEET_ID || localStorage.getItem('google_spreadsheet_id') || '1UUxU8soJuTeB_kMk0XFqHY8UaPcISnWto9MOp960-mo';
+          const contentType = configRes.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const config = await configRes.json();
+            const metaEnv = (import.meta as any).env || {};
+            
+            const finalGasUrl = config.GAS_WEB_APP_URL || metaEnv.VITE_GAS_WEB_APP_URL || localStorage.getItem('gas_web_app_url') || '';
+            const finalFolderId = config.GDRIVE_FOLDER_ID || metaEnv.VITE_GDRIVE_FOLDER_ID || localStorage.getItem('gdrive_folder_id') || '1NvIw5QLalD-eK1u7Hv6vhW5PS0JWjwK2';
+            const finalSpreadsheetId = config.GOOGLE_SPREADSHEET_ID || metaEnv.VITE_GOOGLE_SPREADSHEET_ID || localStorage.getItem('google_spreadsheet_id') || '1UUxU8soJuTeB_kMk0XFqHY8UaPcISnWto9MOp960-mo';
 
-          localStorage.setItem('gas_web_app_url', finalGasUrl);
-          localStorage.setItem('gdrive_folder_id', finalFolderId);
-          localStorage.setItem('google_spreadsheet_id', finalSpreadsheetId);
+            localStorage.setItem('gas_web_app_url', finalGasUrl);
+            localStorage.setItem('gdrive_folder_id', finalFolderId);
+            localStorage.setItem('google_spreadsheet_id', finalSpreadsheetId);
 
-          const finalSubUrl = config.SUPABASE_URL || metaEnv.VITE_SUPABASE_URL || localStorage.getItem('client_supabase_url') || 'https://bicyhoavntfuwaesqwwf.supabase.co';
-          const finalSubKey = config.SUPABASE_KEY || metaEnv.VITE_SUPABASE_KEY || localStorage.getItem('client_supabase_key') || '';
-          const finalSubBucket = config.SUPABASE_BUCKET || metaEnv.VITE_SUPABASE_BUCKET || localStorage.getItem('client_supabase_bucket') || 'EVIDEN';
+            const finalSubUrl = config.SUPABASE_URL || metaEnv.VITE_SUPABASE_URL || localStorage.getItem('client_supabase_url') || 'https://bicyhoavntfuwaesqwwf.supabase.co';
+            const finalSubKey = config.SUPABASE_KEY || metaEnv.VITE_SUPABASE_KEY || localStorage.getItem('client_supabase_key') || '';
+            const finalSubBucket = config.SUPABASE_BUCKET || metaEnv.VITE_SUPABASE_BUCKET || localStorage.getItem('client_supabase_bucket') || 'EVIDEN';
 
-          localStorage.setItem('client_supabase_url', finalSubUrl);
-          localStorage.setItem('client_supabase_key', finalSubKey);
-          localStorage.setItem('client_supabase_bucket', finalSubBucket);
+            localStorage.setItem('client_supabase_url', finalSubUrl);
+            localStorage.setItem('client_supabase_key', finalSubKey);
+            localStorage.setItem('client_supabase_bucket', finalSubBucket);
+          } else {
+            console.warn("Server config endpoint did not return JSON. Falling back to environment/local storage.");
+          }
         }
       } catch (err) {
         console.error("Failed to fetch server config inside App.tsx on mount:", err);
