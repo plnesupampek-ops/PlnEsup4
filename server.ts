@@ -22,6 +22,17 @@ async function startServer() {
     res.json({ status: "ok" });
   });
 
+  app.get("/api/config", (req, res) => {
+    res.json({
+      GAS_WEB_APP_URL: process.env.VITE_GAS_WEB_APP_URL,
+      GDRIVE_FOLDER_ID: process.env.VITE_GDRIVE_FOLDER_ID,
+      GOOGLE_SPREADSHEET_ID: process.env.VITE_GOOGLE_SPREADSHEET_ID,
+      SUPABASE_URL: process.env.VITE_SUPABASE_URL,
+      SUPABASE_KEY: process.env.VITE_SUPABASE_KEY,
+      SUPABASE_BUCKET: process.env.VITE_SUPABASE_BUCKET
+    });
+  });
+
   // Google Sheets CORS Bypass Proxy with robust retry logic
   app.get("/api/sheets", async (req, res) => {
     const sheetName = req.query.sheetName as string;
