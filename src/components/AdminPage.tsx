@@ -123,6 +123,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData 
 
   // GAS Web App configuration
   const [gasUrl, setGasUrl] = useState('');
+  const [isConfigLoaded, setIsConfigLoaded] = useState(false);
   const [folderId, setFolderId] = useState('1NvIw5QLalD-eK1u7Hv6vhW5PS0JWjwK2');
   const [spreadsheetId, setSpreadsheetId] = useState('1UUxU8soJuTeB_kMk0XFqHY8UaPcISnWto9MOp960-mo');
   const [uploadMethod, setUploadMethod] = useState<'server' | 'gdrive'>('gdrive');
@@ -166,6 +167,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData 
   const [addingPetugas, setAddingPetugas] = useState(false);
 
   const [selectedReguNames, setSelectedReguNames] = useState<string[]>([]);
+  const [customReguName, setCustomReguName] = useState('');
   const [newReguCctvUp3Id, setNewReguCctvUp3Id] = useState('');
   const [newReguCctvPoskoId, setNewReguCctvPoskoId] = useState('');
   const [addingReguCctv, setAddingReguCctv] = useState(false);
@@ -428,10 +430,10 @@ export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData 
   };
 
   useEffect(() => {
-    if (isAuthenticated && adminSubTab === 'SETTING') {
+    if (isAuthenticated && adminSubTab === 'SETTING' && isConfigLoaded) {
       loadSettingsData();
     }
-  }, [isAuthenticated, adminSubTab]);
+  }, [isAuthenticated, adminSubTab, isConfigLoaded]);
 
   const handleAddPetugas = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -549,7 +551,15 @@ export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData 
   const handleAddReguCctv = async (e: React.FormEvent) => {
     e.preventDefault();
     const poskoIdToUse = newReguCctvPoskoId || newReguCctvUp3Id;
-    if (selectedReguNames.length === 0 || !poskoIdToUse) return;
+    
+    // Parse custom typed regu names (separated by commas)
+    const parsedCustomNames = customReguName
+      .split(',')
+      .map(n => n.trim())
+      .filter(n => n.length > 0);
+
+    const allReguNames = [...selectedReguNames, ...parsedCustomNames];
+    if (allReguNames.length === 0 || !poskoIdToUse) return;
 
     setAddingReguCctv(true);
     
@@ -557,7 +567,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData 
       let updatedList = [...reguCctvList];
       let syncErrors = [];
 
-      for (const reguName of selectedReguNames) {
+      for (const reguName of allReguNames) {
         const name = reguName.trim().toUpperCase();
         let nextId = "RC" + (updatedList.length > 0 ? updatedList.length : 1);
 
@@ -608,6 +618,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData 
       setReguCctvList(updatedList);
       localStorage.setItem('local_regu_cctv', JSON.stringify(updatedList));
       setSelectedReguNames([]);
+      setCustomReguName('');
       setShowAddReguForm(false);
 
       if (syncErrors.length > 0) {
@@ -814,14 +825,32 @@ export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData 
         console.error("Failed to fetch server-side config", err);
       }
 
-      setGasUrl((config as any).GAS_WEB_APP_URL || localStorage.getItem('gas_web_app_url') || metaEnv.VITE_GAS_WEB_APP_URL || '');
-      setFolderId((config as any).GDRIVE_FOLDER_ID || localStorage.getItem('gdrive_folder_id') || metaEnv.VITE_GDRIVE_FOLDER_ID || '1NvIw5QLalD-eK1u7Hv6vhW5PS0JWjwK2');
-      setSpreadsheetId((config as any).GOOGLE_SPREADSHEET_ID || localStorage.getItem('google_spreadsheet_id') || metaEnv.VITE_GOOGLE_SPREADSHEET_ID || '1UUxU8soJuTeB_kMk0XFqHY8UaPcISnWto9MOp960-mo');
+      const finalGasUrl = (config as any).GAS_WEB_APP_URL || metaEnv.VITE_GAS_WEB_APP_URL || localStorage.getItem('gas_web_app_url') || '';
+      const finalFolderId = (config as any).GDRIVE_FOLDER_ID || metaEnv.VITE_GDRIVE_FOLDER_ID || localStorage.getItem('gdrive_folder_id') || '1NvIw5QLalD-eK1u7Hv6vhW5PS0JWjwK2';
+      const finalSpreadsheetId = (config as any).GOOGLE_SPREADSHEET_ID || metaEnv.VITE_GOOGLE_SPREADSHEET_ID || localStorage.getItem('google_spreadsheet_id') || '1UUxU8soJuTeB_kMk0XFqHY8UaPcISnWto9MOp960-mo';
+
+      setGasUrl(finalGasUrl);
+      setFolderId(finalFolderId);
+      setSpreadsheetId(finalSpreadsheetId);
+
+      localStorage.setItem('gas_web_app_url', finalGasUrl);
+      localStorage.setItem('gdrive_folder_id', finalFolderId);
+      localStorage.setItem('google_spreadsheet_id', finalSpreadsheetId);
 
       // Load Supabase Client-side Settings
-      setSupabaseUrl((config as any).SUPABASE_URL || localStorage.getItem('client_supabase_url') || metaEnv.VITE_SUPABASE_URL || 'https://bicyhoavntfuwaesqwwf.supabase.co');
-      setSupabaseKey((config as any).SUPABASE_KEY || localStorage.getItem('client_supabase_key') || metaEnv.VITE_SUPABASE_KEY || '');
-      setSupabaseBucket((config as any).SUPABASE_BUCKET || localStorage.getItem('client_supabase_bucket') || metaEnv.VITE_SUPABASE_BUCKET || 'EVIDEN');
+      const finalSupabaseUrl = (config as any).SUPABASE_URL || metaEnv.VITE_SUPABASE_URL || localStorage.getItem('client_supabase_url') || 'https://bicyhoavntfuwaesqwwf.supabase.co';
+      const finalSupabaseKey = (config as any).SUPABASE_KEY || metaEnv.VITE_SUPABASE_KEY || localStorage.getItem('client_supabase_key') || '';
+      const finalSupabaseBucket = (config as any).SUPABASE_BUCKET || metaEnv.VITE_SUPABASE_BUCKET || localStorage.getItem('client_supabase_bucket') || 'EVIDEN';
+
+      setSupabaseUrl(finalSupabaseUrl);
+      setSupabaseKey(finalSupabaseKey);
+      setSupabaseBucket(finalSupabaseBucket);
+
+      localStorage.setItem('client_supabase_url', finalSupabaseUrl);
+      localStorage.setItem('client_supabase_key', finalSupabaseKey);
+      localStorage.setItem('client_supabase_bucket', finalSupabaseBucket);
+
+      setIsConfigLoaded(true);
     };
     loadConfigs();
     
@@ -2909,6 +2938,16 @@ function otorisasiIzinDrive() {
                               {name}
                             </label>
                           ))}
+                        </div>
+                        <div className="mt-2">
+                          <label className="text-[8px] font-black uppercase text-slate-400 tracking-wider">ATAU TULIS NAMA REGU KUSTOM</label>
+                          <input
+                            type="text"
+                            value={customReguName}
+                            onChange={(e) => setCustomReguName(e.target.value)}
+                            placeholder="PISAHKAN DENGAN KOMA JIKA LEBIH DARI SATU"
+                            className="w-full mt-1 px-3 py-2 bg-white text-[10px] font-bold text-slate-800 rounded-lg border border-slate-200 focus:border-blue-500 outline-none uppercase"
+                          />
                         </div>
                       </div>
                       <div>
