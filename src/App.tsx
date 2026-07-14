@@ -859,7 +859,7 @@ export default function App() {
   useEffect(() => {
     const ensureConfigsLoaded = async () => {
       try {
-        const configRes = await fetch('/api/config');
+        const configRes = await fetch(`/api/config?_t=${Date.now()}`);
         if (configRes.ok) {
           const config = await configRes.json();
           const metaEnv = (import.meta as any).env || {};

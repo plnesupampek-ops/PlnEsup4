@@ -494,6 +494,9 @@ export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData 
 
       if (isSynced) {
         alert(`Sukses! Petugas '${petugasName}' berhasil ditambahkan dan disinkronisasi ke Google Sheets.`);
+        if (onRefreshData) {
+          onRefreshData();
+        }
       } else {
         alert(`Sukses! Petugas '${petugasName}' ditambahkan secara lokal. (Belum sinkron ke Google Sheets karena Web App URL kosong / bermasalah).`);
       }
@@ -539,6 +542,9 @@ export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData 
 
       if (isSynced) {
         alert(`Sukses! Petugas '${name}' (ID: ${idToDelete}) berhasil dihapus dari Google Sheets.`);
+        if (onRefreshData) {
+          onRefreshData();
+        }
       } else {
         alert(`Sukses! Petugas '${name}' (ID: ${idToDelete}) dihapus secara lokal.`);
       }
@@ -559,13 +565,22 @@ export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData 
       .filter(n => n.length > 0);
 
     const allReguNames = [...selectedReguNames, ...parsedCustomNames];
-    if (allReguNames.length === 0 || !poskoIdToUse) return;
+    
+    if (allReguNames.length === 0) {
+      alert("⚠️ Silakan pilih minimal satu nama regu dari daftar atau masukkan nama regu kustom.");
+      return;
+    }
+    if (!poskoIdToUse) {
+      alert("⚠️ Silakan pilih Posko terlebih dahulu.");
+      return;
+    }
 
     setAddingReguCctv(true);
     
     try {
       let updatedList = [...reguCctvList];
       let syncErrors = [];
+      let syncSuccess = false;
 
       for (const reguName of allReguNames) {
         const name = reguName.trim().toUpperCase();
@@ -601,6 +616,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData 
             const resData = JSON.parse(resText);
             if (resData.success) {
               isSynced = true;
+              syncSuccess = true;
               if (resData.addedRow && resData.addedRow[0]) {
                 nextId = resData.addedRow[0];
               }
@@ -622,7 +638,14 @@ export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData 
       setShowAddReguForm(false);
 
       if (syncErrors.length > 0) {
-        alert(`Selesai dengan beberapa error:\n${syncErrors.join('\n')}`);
+        alert(`Selesai dengan beberapa error:\n${syncErrors.join('\n')}\nData tersimpan di lokal browser.`);
+      } else if (syncSuccess) {
+        alert(`Sukses! Semua regu CCTV berhasil ditambahkan dan disinkronkan ke Google Sheets.`);
+        if (onRefreshData) {
+          onRefreshData();
+        }
+      } else if (!gasUrl) {
+        alert(`⚠️ PERINGATAN: Regu CCTV ditambahkan secara lokal saja di browser ini. Tidak masuk ke Google Sheets karena URL Web App Google Apps Script kosong atau belum dikonfigurasi.`);
       } else {
         alert(`Sukses! Semua regu CCTV berhasil ditambahkan.`);
       }
@@ -668,6 +691,11 @@ export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData 
 
       if (isSynced) {
         alert(`Sukses! Regu CCTV '${name}' (ID: ${idToDelete}) berhasil dihapus dari Google Sheets.`);
+        if (onRefreshData) {
+          onRefreshData();
+        }
+      } else if (!gasUrl) {
+        alert(`⚠️ PERINGATAN: Regu CCTV '${name}' dihapus dari lokal browser saja. Tidak terhapus di Google Sheets karena URL Web App Google Apps Script kosong.`);
       } else {
         alert(`Sukses! Regu CCTV '${name}' (ID: ${idToDelete}) dihapus secara lokal.`);
       }
@@ -723,6 +751,9 @@ export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData 
       setEditingPetugasId(null);
       if (isSynced) {
         alert(`Sukses! Data Petugas berhasil diperbarui dan disinkronisasi ke Google Sheets.`);
+        if (onRefreshData) {
+          onRefreshData();
+        }
       } else {
         alert(`Sukses! Data Petugas berhasil diperbarui secara lokal.`);
       }
@@ -781,6 +812,9 @@ export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData 
       setEditingReguId(null);
       if (isSynced) {
         alert(`Sukses! Data Regu CCTV berhasil diperbarui dan disinkronisasi ke Google Sheets.`);
+        if (onRefreshData) {
+          onRefreshData();
+        }
       } else {
         alert(`Sukses! Data Regu CCTV berhasil diperbarui secara lokal.`);
       }
@@ -814,7 +848,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData 
     const loadConfigs = async () => {
       let config = {};
       try {
-        const configRes = await fetch('/api/config');
+        const configRes = await fetch(`/api/config?_t=${Date.now()}`);
         if (configRes.ok) {
           config = await configRes.json();
           console.log("Loaded config from server:", config);

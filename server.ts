@@ -23,6 +23,13 @@ async function startServer() {
   });
 
   app.get("/api/config", (req, res) => {
+    const envKeys = Object.keys(process.env).filter(key => 
+      key.startsWith("VITE_") || key.includes("GAS") || key.includes("GDRIVE") || key.includes("GOOGLE") || key.includes("SUPABASE") || key.includes("SPREADSHEET") || key.includes("SCRIPT")
+    );
+    console.log("Available environment variables matching config criteria:", envKeys);
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
     res.json({
       GAS_WEB_APP_URL: process.env.VITE_GAS_WEB_APP_URL || process.env.VITE_GAS_WEB_APP || process.env.VITE_APPS_SCRIPT_,
       GDRIVE_FOLDER_ID: process.env.VITE_GDRIVE_FOLDER_ID || process.env.VITE_GDRIVE_FOLD,
