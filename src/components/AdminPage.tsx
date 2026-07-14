@@ -165,7 +165,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData 
   const [newPetugasUlpId, setNewPetugasUlpId] = useState('');
   const [addingPetugas, setAddingPetugas] = useState(false);
 
-  const [newReguCctvName, setNewReguCctvName] = useState('');
+  const [selectedReguNames, setSelectedReguNames] = useState<string[]>([]);
   const [newReguCctvUp3Id, setNewReguCctvUp3Id] = useState('');
   const [newReguCctvPoskoId, setNewReguCctvPoskoId] = useState('');
   const [addingReguCctv, setAddingReguCctv] = useState(false);
@@ -549,65 +549,71 @@ export const AdminPage: React.FC<AdminPageProps> = ({ anomaliList = [], vccData 
   const handleAddReguCctv = async (e: React.FormEvent) => {
     e.preventDefault();
     const poskoIdToUse = newReguCctvPoskoId || newReguCctvUp3Id;
-    if (!newReguCctvName.trim() || !poskoIdToUse) return;
+    if (selectedReguNames.length === 0 || !poskoIdToUse) return;
 
     setAddingReguCctv(true);
-    const reguName = newReguCctvName.trim().toUpperCase();
     
     try {
-      let isSynced = false;
-      let nextId = "RC" + (reguCctvList.length > 0 ? reguCctvList.length : 1);
+      let updatedList = [...reguCctvList];
+      let syncErrors = [];
 
-      if (reguCctvList.length > 1) {
-        const lastRow = reguCctvList[reguCctvList.length - 1];
-        const lastIdVal = String(lastRow[0]).trim();
-        if (lastIdVal.startsWith("RC")) {
-          const numeric = parseInt(lastIdVal.substring(2), 10);
-          if (!isNaN(numeric)) {
-            nextId = "RC" + (numeric + 1);
+      for (const reguName of selectedReguNames) {
+        const name = reguName.trim().toUpperCase();
+        let nextId = "RC" + (updatedList.length > 0 ? updatedList.length : 1);
+
+        if (updatedList.length > 1) {
+          const lastRow = updatedList[updatedList.length - 1];
+          const lastIdVal = String(lastRow[0]).trim();
+          if (lastIdVal.startsWith("RC")) {
+            const numeric = parseInt(lastIdVal.substring(2), 10);
+            if (!isNaN(numeric)) {
+              nextId = "RC" + (numeric + 1);
+            }
           }
         }
-      }
 
-      if (gasUrl) {
-        const proxyUrl = `/api/gas-proxy?gasUrl=${encodeURIComponent(gasUrl.trim())}`;
-        const response = await fetch(proxyUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({
-            action: 'add_regu_cctv',
-            name: reguName,
-            up3Id: poskoIdToUse,
-            spreadsheetId: spreadsheetId
-          })
-        });
+        let isSynced = false;
+        if (gasUrl) {
+          const proxyUrl = `/api/gas-proxy?gasUrl=${encodeURIComponent(gasUrl.trim())}`;
+          const response = await fetch(proxyUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({
+              action: 'add_regu_cctv',
+              name: name,
+              up3Id: poskoIdToUse,
+              spreadsheetId: spreadsheetId
+            })
+          });
 
-        if (response.ok) {
-          const resText = await response.text();
-          const resData = JSON.parse(resText);
-          if (resData.success) {
-            isSynced = true;
-            if (resData.addedRow && resData.addedRow[0]) {
-              nextId = resData.addedRow[0];
+          if (response.ok) {
+            const resText = await response.text();
+            const resData = JSON.parse(resText);
+            if (resData.success) {
+              isSynced = true;
+              if (resData.addedRow && resData.addedRow[0]) {
+                nextId = resData.addedRow[0];
+              }
+            } else {
+              syncErrors.push(`Gagal sinkron ${name}: ${resData.error}`);
             }
           } else {
-            throw new Error(resData.error || "Gagal sinkronisasi ke spreadsheet.");
+            syncErrors.push(`Proxy error ${name}: ${response.statusText}`);
           }
-        } else {
-          throw new Error("Proxy error: " + response.statusText);
         }
+
+        updatedList.push([nextId, name, poskoIdToUse]);
       }
 
-      const updatedList = [...reguCctvList, [nextId, reguName, poskoIdToUse]];
       setReguCctvList(updatedList);
       localStorage.setItem('local_regu_cctv', JSON.stringify(updatedList));
-      setNewReguCctvName('');
+      setSelectedReguNames([]);
       setShowAddReguForm(false);
 
-      if (isSynced) {
-        alert(`Sukses! Regu CCTV '${reguName}' berhasil ditambahkan dan disinkronisasi ke Google Sheets.`);
+      if (syncErrors.length > 0) {
+        alert(`Selesai dengan beberapa error:\n${syncErrors.join('\n')}`);
       } else {
-        alert(`Sukses! Regu CCTV '${reguName}' ditambahkan secara lokal.`);
+        alert(`Sukses! Semua regu CCTV berhasil ditambahkan.`);
       }
     } catch (err: any) {
       console.error(err);
@@ -2863,26 +2869,30 @@ function otorisasiIzinDrive() {
                     <h5 className="text-[9px] font-black uppercase text-slate-500 tracking-wider">FORMULIR TAMBAH REGU CCTV BARU</h5>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="text-[8px] font-black uppercase text-slate-400 tracking-wider">NAMA REGU / ULP</label>
-                        <select
-                          value={newReguCctvName}
-                          onChange={(e) => {
-                            const selectedName = e.target.value;
-                            setNewReguCctvName(selectedName);
-                            if (selectedName && reguToPoskoMap[selectedName]) {
-                              const targetPoskoId = reguToPoskoMap[selectedName];
-                              setNewReguCctvPoskoId(targetPoskoId);
-                              setNewReguCctvUp3Id(targetPoskoId);
-                            }
-                          }}
-                          className="w-full mt-1 px-3 py-2 bg-white text-[10px] font-bold text-slate-800 rounded-lg border border-slate-200 focus:border-blue-500 outline-none cursor-pointer uppercase"
-                          required
-                        >
-                          <option value="">-- PILIH REGU / ULP --</option>
+                        <label className="text-[8px] font-black uppercase text-slate-400 tracking-wider">PILIH REGU (BISA LEBIH DARI 1)</label>
+                        <div className="mt-1 h-32 overflow-y-auto border border-slate-200 rounded-lg p-2 bg-white">
                           {woPoReguNames.map((name, idx) => (
-                            <option key={idx} value={name}>{name}</option>
+                            <label key={idx} className="flex items-center gap-2 py-1 text-[10px] font-bold text-slate-800 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={selectedReguNames.includes(name)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedReguNames(prev => [...prev, name]);
+                                    if (reguToPoskoMap[name]) {
+                                      setNewReguCctvPoskoId(reguToPoskoMap[name]);
+                                      setNewReguCctvUp3Id(reguToPoskoMap[name]);
+                                    }
+                                  } else {
+                                    setSelectedReguNames(prev => prev.filter(n => n !== name));
+                                  }
+                                }}
+                                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                              />
+                              {name}
+                            </label>
                           ))}
-                        </select>
+                        </div>
                       </div>
                       <div>
                         <label className="text-[8px] font-black uppercase text-slate-400 tracking-wider">POSKO</label>
